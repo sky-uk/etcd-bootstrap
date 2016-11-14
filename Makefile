@@ -30,7 +30,7 @@ ifneq "$(unformatted)" ""
 	@exit 1
 endif
 
-vet : build
+vet :
 	@echo "== vet"
 	@go vet $(pkgs)
 
