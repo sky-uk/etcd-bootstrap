@@ -14,6 +14,7 @@ deploy:
   api_key:
     secure: ijqYmyQODUSuhBecg3HTBtnn7SImdMB+gMY0Hu8BXKQ9g8iSAbCwHvXVF7D8an1TjtlKeJ7uSDsVgnekkZX0k0WjHDSPEsHhkEXWrVucmg3eWpsjs9MMb+MbewdeVb2hg/WcZBdCyt9fdEvi5CZjOom7Ho3mxpVikkJLfviLqDyChtfM9i2KWRo+9UNsw0v6BgKagQMXuUj7WBKy8NMjgQTrbepxQy5s4wZID/lYYg5HN82d403tA/bSk7P0Ik3DCzo+qv92C8Q5VRzInOW3oYSlK+JrRwV8nA9mMTDFhilGGFulMXv+gIaVWdVRzzpBQrgWfr4kz7XL+0oLhImYopOAdl8EFE46EKVIAprqy36cvykZ+eejDha7FuLvUo4dT1fmQ6kY2SdVvR5ZsECOumR75j8dDnZhC+WiaxmmuDS1SwxI3Fb7+3l/Fu8kDWUFZljeiKg7GzH1vZvjy5PxNc6Cbjzb61t4obMvaPe5NL4RTdF58XoGp2BVqvK+hz4pJRwYU6lSef2Jx7beY5tyvRpPwKXlgnkBukLrHjE1wd1n0FdHApCtYNxhwMRsnayxWQI0QPEDe5C/SxEVisTJw7a/JNCJv4mkZ4E/DKHBz0wTiVQNnZQQMzx4/3JUJT1zoxn4OCWOHmYsMvFJV9lA95HvVtEMBIPU9fqpIihlg+s=
   file: etcd-bootstrap
+  skip_cleanup: true
   on:
     repo: sky-uk/etcd-bootstrap
     tags: true
