@@ -1,3 +1,5 @@
+![travis](https://travis-ci.org/sky-uk/etcd-bootstrap.svg?branch=master)
+
 # etcd-bootstrap
 
 Bootstrap etcd nodes in the cloud. `etcd-bootstrap` takes care of setting up etcd
