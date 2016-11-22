@@ -5,7 +5,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/client"
-	"github.com/sky-uk/etcd-bootstrap/lib/asg"
+	"github.com/sky-uk/aws-etcd/lib/asg"
 	"golang.org/x/net/context"
 )
 
