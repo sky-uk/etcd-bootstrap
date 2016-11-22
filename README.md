@@ -7,7 +7,16 @@ to automatically join existing clusters and create new ones if necessary.
 
 It's intended for use with AWS Auto Scaling groups and etcd2.
 
-# Usage
+## aws-etcd container
+
+etcd2 container that bootstraps in AWS. Run it the same as the etcd container:
+
+    docker run skycirrus/aws-etcd-v2.3.7 -h
+
+This will take care of setting all the required flags to create or join an existing
+etcd cluster, based on the ASG the local instance is on.
+
+## Command usage
 
 Create instances inside of an ASG. Then run: 
 

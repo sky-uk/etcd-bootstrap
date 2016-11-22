@@ -18,3 +18,6 @@ deploy:
   on:
     repo: sky-uk/etcd-bootstrap
     tags: true
+
+after_success:
+  - if [[ "$TRAVIS_BRANCH" == "master" && "$TRAVIS_PULL_REQUEST" == "false" ]]; then make release; fi
