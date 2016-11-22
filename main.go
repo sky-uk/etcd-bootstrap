@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/sky-uk/etcd-bootstrap/lib"
+	"github.com/sky-uk/aws-etcd/lib"
 )
 
 var outputFilename string

@@ -5,7 +5,7 @@ import (
 
 	"strings"
 
-	"github.com/sky-uk/etcd-bootstrap/lib/asg"
+	"github.com/sky-uk/aws-etcd/lib/asg"
 	"github.com/stretchr/testify/assert"
 )
 

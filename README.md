@@ -1,13 +1,27 @@
 ![travis](https://travis-ci.org/sky-uk/etcd-bootstrap.svg?branch=master)
 
-# etcd-bootstrap
+# aws-etcd
+
+Run self configuring etcd clusters in AWS. Bootstraps etcd using Autoscaling group information.
+Either use the provided docker container or run `etcd-bootstrap` directly to generate the configuration.
+
+## aws-etcd container
+
+Run it the same as the etcd container:
+
+    docker run skycirrus/aws-etcd:v2.3.7 -h
+ 
+This will take care of setting all the required flags to create or join an existing
+etcd cluster, based on the ASG the local instance is on.
+
+## etcd-bootstrap
 
 Bootstrap etcd nodes in the cloud. `etcd-bootstrap` takes care of setting up etcd
 to automatically join existing clusters and create new ones if necessary.
 
 It's intended for use with AWS Auto Scaling groups and etcd2.
 
-# Usage
+### Usage
 
 Create instances inside of an ASG. Then run: 
 
