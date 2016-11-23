@@ -48,9 +48,25 @@ func (b *bootstrapper) newCluster() bool {
 }
 
 func (b *bootstrapper) bootstrapNew() string {
+	return b.createEtcdConfig(newCluster)
+}
+
+func (b *bootstrapper) bootstrapExisting() string {
+	log.Warn("Joining an existing cluster is not implemented yet - will treat this as an existing node")
+	return b.createEtcdConfig(existingCluster)
+}
+
+type clusterState string
+
+const (
+	newCluster      clusterState = "new"
+	existingCluster clusterState = "existing"
+)
+
+func (b *bootstrapper) createEtcdConfig(state clusterState) string {
 	var envs []string
 
-	envs = append(envs, "ETCD_INITIAL_CLUSTER_STATE=new")
+	envs = append(envs, "ETCD_INITIAL_CLUSTER_STATE="+string(state))
 
 	instances := b.asg.GetInstances()
 	var initialCluster []string
@@ -68,9 +84,4 @@ func (b *bootstrapper) bootstrapNew() string {
 	envs = append(envs, fmt.Sprintf("ETCD_ADVERTISE_CLIENT_URLS=http://%s:2379", local.PrivateIP))
 
 	return strings.Join(envs, "\n") + "\n"
-}
-
-func (b *bootstrapper) bootstrapExisting() string {
-	log.Warn("Joining an existing cluster is not implemented yet - will treat this as an existing node")
-	return b.bootstrapNew()
 }
