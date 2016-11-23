@@ -54,3 +54,29 @@ func TestCreateNewCluster(t *testing.T) {
 	assert.Contains(vars, "ETCD_LISTEN_CLIENT_URLS=http://10.50.199.1:2379,http://127.0.0.1:2379")
 	assert.Contains(vars, "ETCD_ADVERTISE_CLIENT_URLS=http://10.50.199.1:2379")
 }
+
+func TestExistingCluster(t *testing.T) {
+	assert := assert.New(t)
+
+	testASG := &testASG{}
+	testASG.instances = []asg.Instance{
+		{InstanceID: "e1", PrivateIP: "10.50.99.1"},
+		{InstanceID: "e2", PrivateIP: "10.50.199.1"},
+		{InstanceID: "e3", PrivateIP: "10.50.155.1"}}
+	testASG.local = asg.Instance{InstanceID: "e2", PrivateIP: "10.50.199.1"}
+
+	etcdCluster := &testCluster{}
+	etcdCluster.members = []string{"e1", "e2", "e3"}
+
+	bootstrapper := New(testASG, etcdCluster)
+	vars := strings.Split(bootstrapper.Bootstrap(), "\n")
+
+	assert.Contains(vars, "ETCD_INITIAL_CLUSTER_STATE=existing")
+	assert.Contains(vars, "ETCD_INITIAL_CLUSTER=e1=http://10.50.99.1:2380,"+
+		"e2=http://10.50.199.1:2380,e3=http://10.50.155.1:2380")
+	assert.Contains(vars, "ETCD_INITIAL_ADVERTISE_PEER_URLS=http://10.50.199.1:2380")
+	assert.Contains(vars, "ETCD_NAME=e2")
+	assert.Contains(vars, "ETCD_LISTEN_PEER_URLS=http://10.50.199.1:2380")
+	assert.Contains(vars, "ETCD_LISTEN_CLIENT_URLS=http://10.50.199.1:2379,http://127.0.0.1:2379")
+	assert.Contains(vars, "ETCD_ADVERTISE_CLIENT_URLS=http://10.50.199.1:2379")
+}
