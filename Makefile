@@ -5,7 +5,7 @@ files := $(shell find . -path ./vendor -prune -o -name '*.go' -print)
 
 all : format check install
 check : vet lint test
-travis : checkformat check build
+travis : checkformat check build docker
 
 format :
 	@echo "== format"
@@ -60,7 +60,7 @@ release : docker
 ifeq ($(strip $(git_tag)),)
 	@echo "no tag on $(git_rev), skipping release"
 else
-	@echo "releasing $(image)"
+	@echo "releasing $(image):$(git_tag)"
 	@docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)
 	docker tag $(image):latest $(image):$(git_tag)
 	docker push $(image):$(git_tag)
