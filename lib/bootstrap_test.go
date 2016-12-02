@@ -88,7 +88,7 @@ func TestExistingCluster(t *testing.T) {
 	bootstrapper := New(testASG, etcdCluster)
 	vars := strings.Split(bootstrapper.Bootstrap(), "\n")
 
-	assert.Contains(vars, "ETCD_INITIAL_CLUSTER_STATE=existing")
+	assert.Contains(vars, "ETCD_INITIAL_CLUSTER_STATE=new")
 	assert.Contains(vars, "ETCD_INITIAL_CLUSTER=e1=http://10.50.99.1:2380,"+
 		"e2=http://10.50.199.1:2380,e3=http://10.50.155.1:2380")
 	assert.Contains(vars, "ETCD_INITIAL_ADVERTISE_PEER_URLS=http://10.50.199.1:2380")

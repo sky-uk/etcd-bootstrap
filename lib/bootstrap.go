@@ -34,20 +34,35 @@ func New(localASG asg.ASG, cluster etcdcluster.Cluster) Bootstrapper {
 
 func (b *bootstrapper) Bootstrap() string {
 	log.Info("Bootstrapping etcd flags")
-	if b.newCluster() {
-		log.Info("No cluster found, bootstrapping a new cluster")
-		return b.bootstrapNew()
+
+	if b.clusterDoesNotExist() {
+		log.Info("No cluster found - treating as an initial node in the new cluster")
+		return b.bootstrapNewCluster()
 	}
-	log.Info("Detected existing cluster")
-	return b.bootstrapExisting()
+
+	if b.nodeExistsInCluster() {
+		// We treat it as a new cluster in case the cluster hasn't fully bootstrapped yet.
+		// etcd will ignore the INITIAL_* flags otherwise, so this should be safe.
+		log.Info("Node peer URL already exists - treating as an existing node in a new cluster")
+		return b.bootstrapNewCluster()
+	}
+
+	log.Info("Node peer URL does not exist - joining as a new node")
+	return b.bootstrapNewNode()
 }
 
-func (b *bootstrapper) newCluster() bool {
+func (b *bootstrapper) clusterDoesNotExist() bool {
 	m := b.cluster.MemberURLs()
 	return len(m) == 0
 }
 
-func (b *bootstrapper) bootstrapNew() string {
+func (b *bootstrapper) nodeExistsInCluster() bool {
+	m := b.cluster.MemberURLs()
+	localInstanceURL := peerURL(b.asg.GetLocalInstance().PrivateIP)
+	return contains(m, localInstanceURL)
+}
+
+func (b *bootstrapper) bootstrapNewCluster() string {
 	availURLs := b.getInstancePeerURLs()
 	return b.createEtcdConfig(newCluster, availURLs)
 }
@@ -60,7 +75,7 @@ func (b *bootstrapper) getInstancePeerURLs() []string {
 	return peerURLs
 }
 
-func (b *bootstrapper) bootstrapExisting() string {
+func (b *bootstrapper) bootstrapNewNode() string {
 	availURLs := b.reconcileMembers()
 	return b.createEtcdConfig(existingCluster, availURLs)
 }
@@ -94,7 +109,9 @@ func (b *bootstrapper) reconcileMembers() []string {
 type clusterState string
 
 const (
-	newCluster      clusterState = "new"
+	// If node already exists, cluster state should be set to new
+	newCluster clusterState = "new"
+	// If node is joining an existing cluster, cluster state should be set to existing
 	existingCluster clusterState = "existing"
 )
 
