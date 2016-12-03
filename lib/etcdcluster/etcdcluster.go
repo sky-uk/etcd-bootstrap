@@ -11,8 +11,8 @@ import (
 
 // Cluster represents an etcd cluster.
 type Cluster interface {
-	// Members returns the cluster members by peer URL.
-	MemberURLs() []string
+	// Members returns the cluster members.
+	Members() []Member
 	// RemoveMember removes a member of the cluster by its peer URL.
 	RemoveMember(peerURL string) error
 	// AddMember adds a new member to the cluster by its peer URL.
@@ -21,6 +21,12 @@ type Cluster interface {
 
 type cluster struct {
 	client client.Client
+}
+
+// Member represents a node in the etcd cluster.
+type Member struct {
+	Name    string
+	PeerURL string
 }
 
 // New returns a cluster object representing the etcd cluster in the local auto scaling group.
@@ -39,21 +45,25 @@ func New(asg asg.ASG) Cluster {
 	return &cluster{c}
 }
 
-func (e *cluster) MemberURLs() []string {
+func (e *cluster) Members() []Member {
 	membersAPI := client.NewMembersAPI(e.client)
-	members, err := membersAPI.List(context.Background())
+	etcdMembers, err := membersAPI.List(context.Background())
 
 	if err != nil {
 		log.Info("Detected cluster errors, this is normal when bootstrapping a new cluster: ", err)
 	}
 
-	var memberURLs []string
-	for _, member := range members {
-		assertSinglePeerURL(member)
-		memberURLs = append(memberURLs, member.PeerURLs[0])
+	var members []Member
+	for _, etcdMember := range etcdMembers {
+		assertSinglePeerURL(etcdMember)
+
+		members = append(members, Member{
+			Name:    etcdMember.Name,
+			PeerURL: etcdMember.PeerURLs[0],
+		})
 	}
 
-	return memberURLs
+	return members
 }
 
 func assertSinglePeerURL(member client.Member) {
