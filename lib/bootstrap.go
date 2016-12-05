@@ -47,24 +47,31 @@ func (b *bootstrapper) Bootstrap() string {
 		return b.bootstrapNewCluster()
 	}
 
-	log.Info("Node peer URL does not exist - joining as a new node")
+	log.Info("Node does not exist yet in cluster - joining as a new node")
 	return b.bootstrapNewNode()
 }
 
 func (b *bootstrapper) clusterDoesNotExist() bool {
-	m := b.cluster.MemberURLs()
+	m := b.cluster.Members()
 	return len(m) == 0
 }
 
 func (b *bootstrapper) nodeExistsInCluster() bool {
-	m := b.cluster.MemberURLs()
+	members := b.cluster.Members()
 	localInstanceURL := peerURL(b.asg.GetLocalInstance().PrivateIP)
-	return contains(m, localInstanceURL)
+
+	for _, member := range members {
+		if member.PeerURL == localInstanceURL && len(member.Name) > 0 {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (b *bootstrapper) bootstrapNewCluster() string {
-	availURLs := b.getInstancePeerURLs()
-	return b.createEtcdConfig(newCluster, availURLs)
+	instanceURLs := b.getInstancePeerURLs()
+	return b.createEtcdConfig(newCluster, instanceURLs)
 }
 
 func (b *bootstrapper) getInstancePeerURLs() []string {
@@ -76,12 +83,18 @@ func (b *bootstrapper) getInstancePeerURLs() []string {
 }
 
 func (b *bootstrapper) bootstrapNewNode() string {
-	availURLs := b.reconcileMembers()
-	return b.createEtcdConfig(existingCluster, availURLs)
+	b.reconcileMembers()
+	clusterURLs := b.etcdMemberPeerURLs()
+	return b.createEtcdConfig(existingCluster, clusterURLs)
 }
 
-func (b *bootstrapper) reconcileMembers() []string {
-	memberURLs := b.cluster.MemberURLs()
+func (b *bootstrapper) reconcileMembers() {
+	b.removeOldEtcdMembers()
+	b.addLocalInstanceToEtcd()
+}
+
+func (b *bootstrapper) removeOldEtcdMembers() {
+	memberURLs := b.etcdMemberPeerURLs()
 	instanceURLs := b.getInstancePeerURLs()
 
 	for _, memberURL := range memberURLs {
@@ -93,16 +106,26 @@ func (b *bootstrapper) reconcileMembers() []string {
 			}
 		}
 	}
+}
 
+func (b *bootstrapper) addLocalInstanceToEtcd() {
+	memberURLs := b.etcdMemberPeerURLs()
 	localInstanceURL := peerURL(b.asg.GetLocalInstance().PrivateIP)
+
 	if !contains(memberURLs, localInstanceURL) {
 		log.Infof("Adding local instance %s to the etcd member list", localInstanceURL)
 		if err := b.cluster.AddMember(localInstanceURL); err != nil {
 			log.Fatalf("Unexpected error when adding new member URL %s: %v", localInstanceURL, err)
 		}
-		memberURLs = append(memberURLs, localInstanceURL)
 	}
+}
 
+func (b *bootstrapper) etcdMemberPeerURLs() []string {
+	members := b.cluster.Members()
+	var memberURLs []string
+	for _, member := range members {
+		memberURLs = append(memberURLs, member.PeerURL)
+	}
 	return memberURLs
 }
 
