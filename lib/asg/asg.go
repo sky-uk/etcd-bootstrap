@@ -1,7 +1,9 @@
 package asg
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"errors"
+	"fmt"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -25,45 +27,58 @@ type Instance struct {
 
 type localASG struct {
 	identityDocument ec2metadata.EC2InstanceIdentityDocument
-	asg              *autoscaling.AutoScaling
-	ec2              *ec2.EC2
-	cachedInstances  []Instance
-}
-
-// New returns an ASG representing the ASG the local instance belongs to.
-func New() ASG {
-	session, err := session.NewSession()
-	if err != nil {
-		log.Fatal("Unable to create AWS session: ", err)
-	}
-
-	identityDoc := getIdentityDocument(session)
-	config := &aws.Config{Region: aws.String(identityDoc.Region)}
-	asg := autoscaling.New(session, config)
-	ec2 := ec2.New(session, config)
-	return &localASG{
-		identityDocument: identityDoc,
-		asg:              asg,
-		ec2:              ec2}
-}
-
-func getIdentityDocument(session *session.Session) ec2metadata.EC2InstanceIdentityDocument {
-	meta := ec2metadata.New(session)
-	identityDoc, err := meta.GetInstanceIdentityDocument()
-	if err != nil {
-		log.Fatal("Unable to retrieve local instance identity document from metadata: ", err)
-	}
-	return identityDoc
+	instances        []Instance
 }
 
 func (a *localASG) GetInstances() []Instance {
-	if a.cachedInstances != nil {
-		return a.cachedInstances
+	return a.instances
+}
+
+func (a *localASG) GetLocalInstance() Instance {
+	return Instance{
+		InstanceID: a.identityDocument.InstanceID,
+		PrivateIP:  a.identityDocument.PrivateIP,
+	}
+}
+
+// New returns an ASG representing the ASG the local instance belongs to.
+func New() (ASG, error) {
+	awsSession, err := session.NewSession()
+	if err != nil {
+		return nil, err
 	}
 
-	instanceID := a.GetLocalInstance().InstanceID
-	asgName := a.getASGName(instanceID)
-	instanceIDs := a.getASGInstanceIDs(asgName)
+	meta := ec2metadata.New(awsSession)
+	identityDoc, err := meta.GetInstanceIdentityDocument()
+	if err != nil {
+		return nil, err
+	}
+
+	config := &aws.Config{Region: aws.String(identityDoc.Region)}
+	awsASG := autoscaling.New(awsSession, config)
+	awsEC2 := ec2.New(awsSession, config)
+
+	instances, err := queryInstances(identityDoc, awsASG, awsEC2)
+	if err != nil {
+		return nil, fmt.Errorf("unable to query instances: %v", err)
+	}
+
+	return &localASG{
+		identityDocument: identityDoc,
+		instances:        instances}, nil
+}
+
+func queryInstances(identity ec2metadata.EC2InstanceIdentityDocument, awsASG *autoscaling.AutoScaling, awsEC2 *ec2.EC2) ([]Instance, error) {
+	instanceID := identity.InstanceID
+	asgName, err := getASGName(instanceID, awsASG)
+	if err != nil {
+		return nil, err
+	}
+
+	instanceIDs, err := getASGInstanceIDs(asgName, awsASG)
+	if err != nil {
+		return nil, err
+	}
 
 	var nonTerminatedStates = []string{"pending", "running", "shutting-down", "stopped", "stopping"}
 	req := &ec2.DescribeInstancesInput{
@@ -76,9 +91,9 @@ func (a *localASG) GetInstances() []Instance {
 		},
 	}
 
-	out, err := a.ec2.DescribeInstances(req)
+	out, err := awsEC2.DescribeInstances(req)
 	if err != nil {
-		log.Fatal("Unable to describe instances: ", err)
+		return nil, err
 	}
 
 	var instances []Instance
@@ -91,42 +106,34 @@ func (a *localASG) GetInstances() []Instance {
 		}
 	}
 
-	a.cachedInstances = instances
-	return instances
+	return instances, nil
 }
 
-func (a *localASG) GetLocalInstance() Instance {
-	return Instance{
-		InstanceID: a.identityDocument.InstanceID,
-		PrivateIP:  a.identityDocument.PrivateIP,
-	}
-}
-
-func (a *localASG) getASGName(instanceID string) string {
+func getASGName(instanceID string, a *autoscaling.AutoScaling) (string, error) {
 	req := &autoscaling.DescribeAutoScalingInstancesInput{
 		InstanceIds: aws.StringSlice([]string{instanceID}),
 	}
-	out, err := a.asg.DescribeAutoScalingInstances(req)
+	out, err := a.DescribeAutoScalingInstances(req)
 	if err != nil {
-		log.Fatal("Unable to describe autoscaling instances: ", err)
+		return "", err
 	}
 	if len(out.AutoScalingInstances) != 1 {
-		log.Fatal("This instance doesn't appear to be part of an autoscaling group")
+		return "", errors.New("this instance doesn't appear to be part of an autoscaling group")
 	}
-	return *out.AutoScalingInstances[0].AutoScalingGroupName
+	return *out.AutoScalingInstances[0].AutoScalingGroupName, nil
 }
 
-func (a *localASG) getASGInstanceIDs(asgName string) []string {
+func getASGInstanceIDs(asgName string, awsASG *autoscaling.AutoScaling) ([]string, error) {
 	req := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: aws.StringSlice([]string{asgName}),
 	}
-	out, err := a.asg.DescribeAutoScalingGroups(req)
+	out, err := awsASG.DescribeAutoScalingGroups(req)
 
 	if err != nil {
-		log.Fatalf("Unable to describe auto scaling group %s: %v", asgName, err)
+		return nil, err
 	}
 	if len(out.AutoScalingGroups) != 1 {
-		log.Fatalf("Expected a single autoscaling group for %s, but found %d", asgName,
+		return nil, fmt.Errorf("Expected a single autoscaling group for %s, but found %d", asgName,
 			len(out.AutoScalingGroups))
 	}
 
@@ -134,5 +141,5 @@ func (a *localASG) getASGInstanceIDs(asgName string) []string {
 	for _, instance := range out.AutoScalingGroups[0].Instances {
 		instanceIDs = append(instanceIDs, *instance.InstanceId)
 	}
-	return instanceIDs
+	return instanceIDs, nil
 }

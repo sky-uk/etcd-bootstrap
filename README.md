@@ -32,6 +32,15 @@ This will:
 3. Create `ETCD_*` environment variables to correctly bootstrap with all the
    other instances.
 
+### Updating a Route53 domain name for the etcd cluster members
+
+Optionally etcd-bootstrap can also register all the IPs in the autoscaling group with a domain name.
+
+    ./etcd-bootstrap -o /var/run/bootstrap.conf -route53-zone-id MYZONEID -route53-domain-name etcd
+
+If zone `MYZONEID` has domain name `example.com`, this will update the domain name `etcd.example.com` with all
+of the IPs. This lets clients use round robin DNS for connecting to the cluster.
+
 ## IAM role
 
 Instances must have the following IAM policy rules:
@@ -45,6 +54,8 @@ Instances must have the following IAM policy rules:
       "Action": [
         "ec2:DescribeInstances",
         "autoscaling:DescribeAutoScaling*",
+        "route53:ChangeResourceRecordSets",
+        "route53:GetHostedZone"
       ],
       "Resource": "*"
     }
