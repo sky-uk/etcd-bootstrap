@@ -12,7 +12,7 @@ import (
 // Cluster represents an etcd cluster.
 type Cluster interface {
 	// Members returns the cluster members.
-	Members() []Member
+	Members() ([]Member, error)
 	// RemoveMember removes a member of the cluster by its peer URL.
 	RemoveMember(peerURL string) error
 	// AddMember adds a new member to the cluster by its peer URL.
@@ -30,7 +30,7 @@ type Member struct {
 }
 
 // New returns a cluster object representing the etcd cluster in the local auto scaling group.
-func New(asg asg.ASG) Cluster {
+func New(asg asg.ASG) (Cluster, error) {
 	instances := asg.GetInstances()
 
 	var endpoints []string
@@ -40,12 +40,12 @@ func New(asg asg.ASG) Cluster {
 
 	c, err := client.New(client.Config{Endpoints: endpoints})
 	if err != nil {
-		log.Fatal("Unable to create etcd client: ", err)
+		return nil, err
 	}
-	return &cluster{c}
+	return &cluster{c}, nil
 }
 
-func (e *cluster) Members() []Member {
+func (e *cluster) Members() ([]Member, error) {
 	membersAPI := client.NewMembersAPI(e.client)
 	etcdMembers, err := membersAPI.List(context.Background())
 
@@ -55,7 +55,9 @@ func (e *cluster) Members() []Member {
 
 	var members []Member
 	for _, etcdMember := range etcdMembers {
-		assertSinglePeerURL(etcdMember)
+		if err := assertSinglePeerURL(etcdMember); err != nil {
+			return nil, err
+		}
 
 		members = append(members, Member{
 			Name:    etcdMember.Name,
@@ -63,21 +65,27 @@ func (e *cluster) Members() []Member {
 		})
 	}
 
-	return members
+	return members, nil
 }
 
-func assertSinglePeerURL(member client.Member) {
+func assertSinglePeerURL(member client.Member) error {
 	if len(member.PeerURLs) != 1 {
-		log.Fatalf("Expected a single peer URL, but found %v for %s", member.PeerURLs, member.ID)
+		return fmt.Errorf("expected a single peer URL, but found %v for %s", member.PeerURLs, member.ID)
 	}
+	return nil
 }
 
 func (e *cluster) RemoveMember(peerURL string) error {
 	membersAPI := client.NewMembersAPI(e.client)
-	members := ensureGetMembers(membersAPI)
+	members, err := membersAPI.List(context.Background())
+	if err != nil {
+		return err
+	}
 
 	for _, member := range members {
-		assertSinglePeerURL(member)
+		if err := assertSinglePeerURL(member); err != nil {
+			return err
+		}
 		if member.PeerURLs[0] == peerURL {
 			return membersAPI.Remove(context.Background(), member.ID)
 		}
@@ -85,16 +93,6 @@ func (e *cluster) RemoveMember(peerURL string) error {
 
 	log.Infof("%s has already been removed", peerURL)
 	return nil
-}
-
-func ensureGetMembers(api client.MembersAPI) []client.Member {
-	members, err := api.List(context.Background())
-
-	if err != nil {
-		log.Fatal("Unexpected error when querying members API on existing cluster: ", err)
-	}
-
-	return members
 }
 
 func (e *cluster) AddMember(peerURL string) error {
