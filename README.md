@@ -11,10 +11,16 @@ It's intended for use with AWS Auto Scaling groups and etcd2.
 
 etcd2 container that bootstraps in AWS. Run it the same as the etcd container:
 
-    docker run skycirrus/aws-etcd-v2.3.7 -h
+    docker run skycirrus/aws-etcd-v2.3.7 -h # lists all the etcd options
 
-This will take care of setting all the required flags to create or join an existing
+You can pass in any flag that etcd takes normally.
+
+The wrapper will take care of setting all the required flags to create or join an existing
 etcd cluster, based on the ASG the local instance is on.
+
+To pass flags to etcd-bootstrap, set the `ETCD_BOOTSTRAP_FLAGS` environment variable.
+
+    docker run -e ETCD_BOOTSTRAP_FLAGS='-route53-zone-id MYZONEID -route53-domain-name etcd' skycirrus/aws-etcd-v2.3.7
 
 ## Command usage
 
