@@ -1,4 +1,4 @@
-package r53
+package dns
 
 import (
 	log "github.com/Sirupsen/logrus"

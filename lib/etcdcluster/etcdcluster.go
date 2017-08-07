@@ -5,7 +5,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/client"
-	"github.com/sky-uk/etcd-bootstrap/lib/asg"
+	"github.com/sky-uk/etcd-bootstrap/lib/members"
 	"golang.org/x/net/context"
 )
 
@@ -30,8 +30,8 @@ type Member struct {
 }
 
 // New returns a cluster object representing the etcd cluster in the local auto scaling group.
-func New(asg asg.ASG) (Cluster, error) {
-	instances := asg.GetInstances()
+func New(members members.Members) (Cluster, error) {
+	instances := members.GetInstances()
 
 	var endpoints []string
 	for _, instance := range instances {

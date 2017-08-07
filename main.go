@@ -9,12 +9,22 @@ import (
 	"github.com/sky-uk/etcd-bootstrap/lib"
 )
 
+var vmwareConfigLocation string
+var vmwareEnv string
+var vmwareRole string
 var outputFilename string
 var zoneID string
 var domainName string
 
 func init() {
 	const defaultOutputFilename = "/var/run/etcd-bootstrap.conf"
+
+	flag.StringVar(&vmwareConfigLocation, "vmware-config-location", "",
+		"location of the vSphere cloud provider configuration file")
+	flag.StringVar(&vmwareEnv, "vmware-environment", "",
+		"value of the 'tags_environment' extra configuration option in vSphere to filter nodes by")
+	flag.StringVar(&vmwareRole, "vmware-role", "",
+		"value of the 'tags_role' extra configuration option in vSphere to filter nodes by")
 
 	flag.StringVar(&outputFilename, "o", defaultOutputFilename,
 		"location to write environment variables for etcd to use")
@@ -28,10 +38,17 @@ func main() {
 	flag.Parse()
 
 	out := "# created by etcd-bootstrap\n"
+	validateArguments()
 
-	bootstrapper, err := bootstrap.LocalASG()
+	var bootstrapper bootstrap.Bootstrapper
+	var err error
+	if vmwareConfigLocation != "" {
+		bootstrapper, err = bootstrap.LocalVMWare(vmwareConfigLocation, vmwareEnv, vmwareRole)
+	} else {
+		bootstrapper, err = bootstrap.LocalASG()
+	}
 	if err != nil {
-		log.Fatalf("Unable to initialise bootstrapper for local ASG: %v", err)
+		log.Fatalf("Unable to initialise bootstrapper: %v", err)
 	}
 
 	etcdOut, err := bootstrapper.BootstrapEtcdFlags()
@@ -51,5 +68,11 @@ func main() {
 		if err := bootstrapper.BootstrapRoute53(zoneID, domainName); err != nil {
 			log.Fatalf("Unable to bootstrap route53: %v", err)
 		}
+	}
+}
+
+func validateArguments() {
+	if vmwareConfigLocation != "" && (zoneID != "" || domainName != "") {
+		log.Warn("Route53 zone setup cannot be run on VMWare")
 	}
 }

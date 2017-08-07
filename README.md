@@ -5,11 +5,13 @@
 Bootstrap etcd nodes in the cloud. `etcd-bootstrap` takes care of setting up etcd
 to automatically join existing clusters and create new ones if necessary.
 
-It's intended for use with AWS Auto Scaling groups and etcd2.
+It's intended for use with etcd2 and one of:
+  * An AWS Auto Scaling group; or
+  * A vSphere server
 
 ## aws-etcd container
 
-etcd2 container that bootstraps in AWS. Run it the same as the etcd container:
+etcd2 container that bootstraps in the cloud. Run it the same as the etcd container:
 
     docker run skycirrus/aws-etcd-v2.3.7 -h # lists all the etcd options
 
@@ -24,7 +26,7 @@ To pass flags to etcd-bootstrap, set the `ETCD_BOOTSTRAP_FLAGS` environment vari
 
 ## Command usage
 
-Create instances inside of an ASG. Then run: 
+Create instances inside of an ASG or in vSphere. Then run:
 
     ./etcd-bootstrap -o /var/run/bootstrap.conf
     source /var/run/bootstrap.conf
@@ -32,7 +34,7 @@ Create instances inside of an ASG. Then run:
 
 This will:
 
-1. Query the ASG for all the instance IPs.
+1. Query the relevant API for all the instance IPs.
 2. Determine if joining an existing cluster or not, by querying all instances
    to see if etcd is available.
 3. Create `ETCD_*` environment variables to correctly bootstrap with all the
@@ -69,3 +71,23 @@ Instances must have the following IAM policy rules:
 }
 
 ```
+
+## Cloud-specific notes
+
+### AWS
+
+AWS nodes must be created in an ASG of which the node on which the container runs must be a part.
+
+### VMWare
+
+The VMWare mode requires three options:
+
+ * `vmware-config-location` - a path to a file on disk from which the vSphere configuration can be read
+ * `vmware-environment` - the environment to filter
+ * `vmware-role` - the role to filter
+
+The VMWare configuration file should be of the same format as specified by
+[Kubernetes](https://kubernetes.io/docs/getting-started-guides/vsphere/).
+
+In order for the environment and role filters to work, the VMs must have been provisioned with extra configuration
+parameters named "tags_environment" and "tags_role" set to the values provided on the command line.

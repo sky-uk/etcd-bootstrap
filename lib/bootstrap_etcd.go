@@ -47,7 +47,7 @@ func (b *bootstrapper) nodeExistsInCluster() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	localInstanceURL := peerURL(b.asg.GetLocalInstance().PrivateIP)
+	localInstanceURL := peerURL(b.members.GetLocalInstance().PrivateIP)
 
 	for _, member := range members {
 		if member.PeerURL == localInstanceURL && len(member.Name) > 0 {
@@ -64,7 +64,7 @@ func (b *bootstrapper) bootstrapNewCluster() string {
 }
 
 func (b *bootstrapper) getInstancePeerURLs() []string {
-	instances := b.asg.GetInstances()
+	instances := b.members.GetInstances()
 
 	var peerURLs []string
 	for _, i := range instances {
@@ -121,7 +121,7 @@ func (b *bootstrapper) addLocalInstanceToEtcd() error {
 	if err != nil {
 		return err
 	}
-	localInstanceURL := peerURL(b.asg.GetLocalInstance().PrivateIP)
+	localInstanceURL := peerURL(b.members.GetLocalInstance().PrivateIP)
 
 	if !contains(memberURLs, localInstanceURL) {
 		log.Infof("Adding local instance %s to the etcd member list", localInstanceURL)
@@ -161,7 +161,7 @@ func (b *bootstrapper) createEtcdConfig(state clusterState, availablePeerURLs []
 	initialCluster := b.constructInitialCluster(availablePeerURLs)
 	envs = append(envs, fmt.Sprintf("ETCD_INITIAL_CLUSTER=%s", initialCluster))
 
-	local := b.asg.GetLocalInstance()
+	local := b.members.GetLocalInstance()
 	envs = append(envs, fmt.Sprintf("ETCD_NAME=%s", local.InstanceID))
 	envs = append(envs, fmt.Sprintf("ETCD_INITIAL_ADVERTISE_PEER_URLS=%s", peerURL(local.PrivateIP)))
 	envs = append(envs, fmt.Sprintf("ETCD_LISTEN_PEER_URLS=%s", peerURL(local.PrivateIP)))
@@ -173,7 +173,7 @@ func (b *bootstrapper) createEtcdConfig(state clusterState, availablePeerURLs []
 
 func (b *bootstrapper) constructInitialCluster(availablePeerURLs []string) string {
 	var initialCluster []string
-	for _, instance := range b.asg.GetInstances() {
+	for _, instance := range b.members.GetInstances() {
 		instancePeerURL := peerURL(instance.PrivateIP)
 		if contains(availablePeerURLs, instancePeerURL) {
 			initialCluster = append(initialCluster,

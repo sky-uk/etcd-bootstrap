@@ -5,8 +5,8 @@ import (
 
 	"strings"
 
-	"github.com/sky-uk/etcd-bootstrap/lib/asg"
 	"github.com/sky-uk/etcd-bootstrap/lib/etcdcluster"
+	"github.com/sky-uk/etcd-bootstrap/lib/members"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,11 +14,11 @@ func TestCreateNewCluster(t *testing.T) {
 	assert := assert.New(t)
 
 	testASG := &testASG{}
-	testASG.instances = []asg.Instance{
+	testASG.instances = []members.Instance{
 		{InstanceID: "e1", PrivateIP: "10.50.99.1"},
 		{InstanceID: "e2", PrivateIP: "10.50.199.1"},
 		{InstanceID: "e3", PrivateIP: "10.50.155.1"}}
-	testASG.local = asg.Instance{InstanceID: "e2", PrivateIP: "10.50.199.1"}
+	testASG.local = members.Instance{InstanceID: "e2", PrivateIP: "10.50.199.1"}
 
 	etcdCluster := &testCluster{}
 
@@ -41,11 +41,11 @@ func TestExistingCluster(t *testing.T) {
 	assert := assert.New(t)
 
 	testASG := &testASG{}
-	testASG.instances = []asg.Instance{
+	testASG.instances = []members.Instance{
 		{InstanceID: "e1", PrivateIP: "10.50.99.1"},
 		{InstanceID: "e2", PrivateIP: "10.50.199.1"},
 		{InstanceID: "e3", PrivateIP: "10.50.155.1"}}
-	testASG.local = asg.Instance{InstanceID: "e2", PrivateIP: "10.50.199.1"}
+	testASG.local = members.Instance{InstanceID: "e2", PrivateIP: "10.50.199.1"}
 
 	etcdCluster := &testCluster{}
 	etcdCluster.members = []etcdcluster.Member{
@@ -82,11 +82,11 @@ func TestJoinAnExistingCluster(t *testing.T) {
 	assert := assert.New(t)
 
 	testASG := &testASG{}
-	testASG.instances = []asg.Instance{
+	testASG.instances = []members.Instance{
 		{InstanceID: "e1", PrivateIP: "10.50.99.1"},
 		{InstanceID: "e2", PrivateIP: "10.50.199.1"},
 		{InstanceID: "e3", PrivateIP: "10.50.155.1"}}
-	testASG.local = asg.Instance{InstanceID: "e2", PrivateIP: "10.50.199.1"}
+	testASG.local = members.Instance{InstanceID: "e2", PrivateIP: "10.50.199.1"}
 
 	etcdCluster := &testCluster{}
 	etcdCluster.members = []etcdcluster.Member{
@@ -127,11 +127,11 @@ func TestJoinAnExistingClusterWhenPartiallyInitialised(t *testing.T) {
 	assert := assert.New(t)
 
 	testASG := &testASG{}
-	testASG.instances = []asg.Instance{
+	testASG.instances = []members.Instance{
 		{InstanceID: "e1", PrivateIP: "10.50.99.1"},
 		{InstanceID: "e2", PrivateIP: "10.50.199.1"},
 		{InstanceID: "e3", PrivateIP: "10.50.155.1"}}
-	testASG.local = asg.Instance{InstanceID: "e3", PrivateIP: "10.50.155.1"}
+	testASG.local = members.Instance{InstanceID: "e3", PrivateIP: "10.50.155.1"}
 
 	etcdCluster := &testCluster{}
 	etcdCluster.members = []etcdcluster.Member{

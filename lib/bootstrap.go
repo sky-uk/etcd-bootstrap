@@ -1,9 +1,9 @@
 package bootstrap
 
 import (
-	"github.com/sky-uk/etcd-bootstrap/lib/asg"
+	"github.com/sky-uk/etcd-bootstrap/lib/dns"
 	"github.com/sky-uk/etcd-bootstrap/lib/etcdcluster"
-	"github.com/sky-uk/etcd-bootstrap/lib/r53"
+	"github.com/sky-uk/etcd-bootstrap/lib/members"
 )
 
 // Bootstrapper bootstraps etcd.
@@ -16,29 +16,42 @@ type Bootstrapper interface {
 }
 
 type bootstrapper struct {
-	asg     asg.ASG
+	members members.Members
 	cluster etcdcluster.Cluster
-	r53     r53.R53
+	r53     dns.R53
 }
 
 // LocalASG creates a bootstrapper wired to the local ASG.
 func LocalASG() (Bootstrapper, error) {
-	asg, err := asg.New()
+	asg, err := members.NewAws()
 	if err != nil {
 		return nil, err
 	}
-	r53, err := r53.New()
+	r53, err := dns.New()
 	if err != nil {
 		return nil, err
 	}
-	etcd, err := etcdcluster.New(asg)
+	return newBootstrapper(asg, r53)
+}
+
+// LocalVMWare creates a bootstrapper wired to the VMWare vSphere controller
+func LocalVMWare(configLocation, env, role string) (Bootstrapper, error) {
+	vmware, err := members.NewVMware(configLocation, env, role)
 	if err != nil {
 		return nil, err
 	}
-	return New(asg, etcd, r53), nil
+	return newBootstrapper(vmware, nil)
+}
+
+func newBootstrapper(members members.Members, r53 dns.R53) (Bootstrapper, error) {
+	etcd, err := etcdcluster.New(members)
+	if err != nil {
+		return nil, err
+	}
+	return New(members, etcd, r53), nil
 }
 
 // New creates a new bootstrapper.
-func New(awsASG asg.ASG, cluster etcdcluster.Cluster, awsR53 r53.R53) Bootstrapper {
-	return &bootstrapper{awsASG, cluster, awsR53}
+func New(members members.Members, cluster etcdcluster.Cluster, awsR53 dns.R53) Bootstrapper {
+	return &bootstrapper{members, cluster, awsR53}
 }

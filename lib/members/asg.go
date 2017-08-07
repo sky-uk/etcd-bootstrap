@@ -1,4 +1,4 @@
-package asg
+package members
 
 import (
 	"errors"
@@ -10,20 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
-
-// ASG represents the local auto scaling group.
-type ASG interface {
-	// GetInstances returns all the non-terminated instances in the local ASG.
-	GetInstances() []Instance
-	// GetLocalInstance returns the local machine instance.
-	GetLocalInstance() Instance
-}
-
-// Instance represents an instance inside of the auto scaling group.
-type Instance struct {
-	InstanceID string
-	PrivateIP  string
-}
 
 type localASG struct {
 	identityDocument ec2metadata.EC2InstanceIdentityDocument
@@ -41,8 +27,8 @@ func (a *localASG) GetLocalInstance() Instance {
 	}
 }
 
-// New returns an ASG representing the ASG the local instance belongs to.
-func New() (ASG, error) {
+// NewAws returns the Members this local instance belongs to.
+func NewAws() (Members, error) {
 	awsSession, err := session.NewSession()
 	if err != nil {
 		return nil, err
