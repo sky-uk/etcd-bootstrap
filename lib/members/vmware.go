@@ -5,10 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/vmware/govmomi"
@@ -16,7 +14,6 @@ import (
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
-	gcfg "gopkg.in/gcfg.v1"
 )
 
 type vmwareMembers struct {
@@ -33,21 +30,10 @@ func (m vmwareMembers) GetLocalInstance() Instance {
 }
 
 // NewVMware returns the Members this local instance belongs to.
-func NewVMware(configLocation, env, role string) (Members, error) {
+func NewVMware(cfg *VmwareConfig, env, role string) (Members, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	defer cancel()
-
-	f, err := os.Open(configLocation)
-	if err != nil {
-		log.Fatal(err)
-		return nil, err
-	}
-	cfg, err := readConfig(f)
-	if err != nil {
-		log.Fatal(err)
-		return nil, err
-	}
 
 	c, err := NewClient(ctx, cfg)
 	if err != nil {
@@ -129,9 +115,9 @@ func matchesTag(vm mo.VirtualMachine, tag string, match string) bool {
 	return false
 }
 
-func findThisInstance(cfg *vmwareConfig, instances []Instance) (*Instance, error) {
+func findThisInstance(cfg *VmwareConfig, instances []Instance) (*Instance, error) {
 	for _, instance := range instances {
-		if strings.Contains(cfg.Global.VMName, instance.InstanceID) {
+		if strings.Contains(cfg.VMName, instance.InstanceID) {
 			return &Instance{
 				InstanceID: instance.InstanceID,
 				PrivateIP:  instance.PrivateIP,
@@ -142,72 +128,41 @@ func findThisInstance(cfg *vmwareConfig, instances []Instance) (*Instance, error
 	return nil, errors.New("Unable to find VM instance")
 }
 
-const (
-	roundTripperDefaultCount = 3
-)
-
-type vmwareConfig struct {
-	Global struct {
-		// vCenter username.
-		User string `gcfg:"user"`
-		// vCenter password in clear text.
-		Password string `gcfg:"password"`
-		// vCenter IP.
-		VCenterIP string `gcfg:"server"`
-		// vCenter port.
-		VCenterPort string `gcfg:"port"`
-		// True if vCenter uses self-signed cert.
-		InsecureFlag bool `gcfg:"insecure-flag"`
-		// Datacenter in which VMs are located.
-		Datacenter string `gcfg:"datacenter"`
-		// Datastore in which vmdks are stored.
-		Datastore string `gcfg:"datastore"`
-		// WorkingDir is path where VMs can be found.
-		WorkingDir string `gcfg:"working-dir"`
-		// Soap round tripper count (retries = RoundTripper - 1)
-		RoundTripperCount uint `gcfg:"soap-roundtrip-count"`
-		// VMName is the VM name of virtual machine
-		VMName string `gcfg:"vm-name"`
-	}
-
-	Disk struct {
-		// SCSIControllerType defines SCSI controller to be used.
-		SCSIControllerType string `dcfg:"scsicontrollertype"`
-	}
-}
-
-func readConfig(config io.Reader) (*vmwareConfig, error) {
-	if config == nil {
-		return nil, errors.New("No VMWare config file given")
-	}
-
-	var cfg vmwareConfig
-	err := gcfg.ReadInto(&cfg, config)
-	return &cfg, err
+// VmwareConfig is the configuration required to talk to the vSphere API to fetch a list of nodes
+type VmwareConfig struct {
+	// vCenter username.
+	User string
+	// vCenter password in clear text.
+	Password string
+	// vCenter IP.
+	VCenterIP string
+	// vCenter port.
+	VCenterPort string
+	// True if vCenter uses self-signed cert.
+	InsecureFlag bool
+	// Soap round tripper count (retries = RoundTripper - 1)
+	RoundTripperCount uint
+	// VMName is the VM name of virtual machine
+	VMName string
 }
 
 // NewClient creates a govmomi.Client for use in the examples
-func NewClient(ctx context.Context, cfg *vmwareConfig) (*govmomi.Client, error) {
+func NewClient(ctx context.Context, cfg *VmwareConfig) (*govmomi.Client, error) {
 	flag.Parse()
 
-	u, err := url.Parse(fmt.Sprintf("https://%s:%s/sdk", cfg.Global.VCenterIP, cfg.Global.VCenterPort))
+	u, err := url.Parse(fmt.Sprintf("https://%s:%s/sdk", cfg.VCenterIP, cfg.VCenterPort))
 	if err != nil {
 		return nil, err
 	}
 
-	u.User = url.UserPassword(cfg.Global.User, cfg.Global.Password)
+	u.User = url.UserPassword(cfg.User, cfg.Password)
 
-	c, err := govmomi.NewClient(ctx, u, cfg.Global.InsecureFlag)
+	c, err := govmomi.NewClient(ctx, u, cfg.InsecureFlag)
 	if err != nil {
 		return nil, err
 	}
 
-	roundTripperCount := cfg.Global.RoundTripperCount
-	if roundTripperCount == 0 {
-		roundTripperCount = roundTripperDefaultCount
-	}
-
-	c.RoundTripper = vim25.Retry(c.RoundTripper, vim25.TemporaryNetworkError(int(roundTripperCount)))
+	c.RoundTripper = vim25.Retry(c.RoundTripper, vim25.TemporaryNetworkError(int(cfg.RoundTripperCount)))
 
 	return c, nil
 }

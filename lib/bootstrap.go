@@ -35,8 +35,8 @@ func LocalASG() (Bootstrapper, error) {
 }
 
 // LocalVMWare creates a bootstrapper wired to the VMWare vSphere controller
-func LocalVMWare(configLocation, env, role string) (Bootstrapper, error) {
-	vmware, err := members.NewVMware(configLocation, env, role)
+func LocalVMWare(config *members.VmwareConfig, env, role string) (Bootstrapper, error) {
+	vmware, err := members.NewVMware(config, env, role)
 	if err != nil {
 		return nil, err
 	}
