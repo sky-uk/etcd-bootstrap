@@ -1,4 +1,4 @@
-package cloud
+package vmware
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25"
@@ -17,20 +18,25 @@ import (
 )
 
 type vmwareMembers struct {
-	instances []Instance
-	instance  Instance
+	instances []cloud.Instance
+	instance  cloud.Instance
 }
 
-func (m vmwareMembers) GetInstances() []Instance {
+func (m vmwareMembers) GetInstances() []cloud.Instance {
 	return m.instances
 }
 
-func (m vmwareMembers) GetLocalInstance() Instance {
+func (m vmwareMembers) GetLocalInstance() cloud.Instance {
 	return m.instance
 }
 
+func (m vmwareMembers) UpdateDNS(name string) error {
+	// No DNS provider is enabled for VMWare
+	return nil
+}
+
 // NewVMware returns the Members this local instance belongs to.
-func NewVMware(cfg *VmwareConfig) (Cloud, error) {
+func NewVMware(cfg *Config) (cloud.Cloud, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	defer cancel()
@@ -62,7 +68,7 @@ func NewVMware(cfg *VmwareConfig) (Cloud, error) {
 	return members, nil
 }
 
-func findAllInstances(ctx context.Context, c *govmomi.Client, env, role string) ([]Instance, error) {
+func findAllInstances(ctx context.Context, c *govmomi.Client, env, role string) ([]cloud.Instance, error) {
 	m := view.NewManager(c.Client)
 
 	v, err := m.CreateContainerView(ctx, c.ServiceContent.RootFolder, []string{"VirtualMachine"}, true)
@@ -83,7 +89,7 @@ func findAllInstances(ctx context.Context, c *govmomi.Client, env, role string) 
 		return nil, err
 	}
 
-	var instances []Instance
+	var instances []cloud.Instance
 
 	var matched []mo.VirtualMachine
 	for _, vm := range vms {
@@ -94,7 +100,7 @@ func findAllInstances(ctx context.Context, c *govmomi.Client, env, role string) 
 
 	for _, vm := range matched {
 		if vm.Summary.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
-			instances = append(instances, Instance{
+			instances = append(instances, cloud.Instance{
 				InstanceID: vm.Config.Name,
 				PrivateIP:  vm.Summary.Guest.IpAddress,
 			})
@@ -115,10 +121,10 @@ func matchesTag(vm mo.VirtualMachine, tag string, match string) bool {
 	return false
 }
 
-func findThisInstance(cfg *VmwareConfig, instances []Instance) (*Instance, error) {
+func findThisInstance(cfg *Config, instances []cloud.Instance) (*cloud.Instance, error) {
 	for _, instance := range instances {
 		if strings.Contains(cfg.VMName, instance.InstanceID) {
-			return &Instance{
+			return &cloud.Instance{
 				InstanceID: instance.InstanceID,
 				PrivateIP:  instance.PrivateIP,
 			}, nil
@@ -128,8 +134,8 @@ func findThisInstance(cfg *VmwareConfig, instances []Instance) (*Instance, error
 	return nil, errors.New("Unable to find VM instance")
 }
 
-// VmwareConfig is the configuration required to talk to the vSphere API to fetch a list of nodes
-type VmwareConfig struct {
+// Config is the configuration required to talk to the vSphere API to fetch a list of nodes
+type Config struct {
 	// vCenter username.
 	User string
 	// vCenter password in clear text.
@@ -151,7 +157,7 @@ type VmwareConfig struct {
 }
 
 // NewClient creates a govmomi.Client for use in the examples
-func NewClient(ctx context.Context, cfg *VmwareConfig) (*govmomi.Client, error) {
+func NewClient(ctx context.Context, cfg *Config) (*govmomi.Client, error) {
 	flag.Parse()
 
 	u, err := url.Parse(fmt.Sprintf("https://%s:%s/sdk", cfg.VCenterHost, cfg.VCenterPort))

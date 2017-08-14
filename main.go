@@ -7,7 +7,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/sky-uk/etcd-bootstrap/lib"
-	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
+	"github.com/sky-uk/etcd-bootstrap/lib/vmware"
 )
 
 var (
@@ -58,8 +58,8 @@ func init() {
 		"location to write environment variables for etcd to use")
 	flag.StringVar(&zoneID, "route53-zone-id", "",
 		"route53 zone ID to update with the IP addresses of the etcd auto scaling group")
-	flag.StringVar(&domainName, "route53-domain-name", "",
-		"domain name to update inside the Route53 zone")
+	flag.StringVar(&domainName, "domain-name", "",
+		"domain name to update inside the DNS provider")
 }
 
 func main() {
@@ -70,7 +70,7 @@ func main() {
 	var bootstrapper bootstrap.Bootstrapper
 	var err error
 	if cloudProvider == "vmware" {
-		config := &cloud.VmwareConfig{
+		config := &vmware.Config{
 			User:              vmwareUsername,
 			Password:          vmwarePassword,
 			VCenterHost:       vmwareHost,
@@ -84,7 +84,7 @@ func main() {
 
 		bootstrapper, err = bootstrap.LocalVMWare(config)
 	} else {
-		bootstrapper, err = bootstrap.LocalASG()
+		bootstrapper, err = bootstrap.LocalASG(zoneID)
 	}
 	if err != nil {
 		log.Fatalf("Unable to initialise bootstrapper: %v", err)
@@ -103,10 +103,10 @@ func main() {
 		log.Fatalf("Unable to write to %s: %v", outputFilename, err)
 	}
 
-	if zoneID != "" && domainName != "" {
-		log.Infof("Adding etcd IPs to %q in route53 zone %q", domainName, zoneID)
-		if err := bootstrapper.BootstrapRoute53(zoneID, domainName); err != nil {
-			log.Fatalf("Unable to bootstrap route53: %v", err)
+	if domainName != "" {
+		log.Infof("Adding etcd IPs to %q in DNS", domainName)
+		if err := bootstrapper.BootstrapDNS(domainName); err != nil {
+			log.Fatalf("Unable to bootstrap DNS: %v", err)
 		}
 	}
 }

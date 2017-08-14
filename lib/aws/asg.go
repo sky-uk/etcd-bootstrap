@@ -1,4 +1,4 @@
-package cloud
+package aws
 
 import (
 	"errors"
@@ -9,26 +9,41 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
 )
 
 type localASG struct {
 	identityDocument ec2metadata.EC2InstanceIdentityDocument
-	instances        []Instance
+	instances        []cloud.Instance
+	r53              R53
+	zoneID           string
 }
 
-func (a *localASG) GetInstances() []Instance {
+func (a *localASG) GetInstances() []cloud.Instance {
 	return a.instances
 }
 
-func (a *localASG) GetLocalInstance() Instance {
-	return Instance{
+func (a *localASG) GetLocalInstance() cloud.Instance {
+	return cloud.Instance{
 		InstanceID: a.identityDocument.InstanceID,
 		PrivateIP:  a.identityDocument.PrivateIP,
 	}
 }
 
+func (a *localASG) UpdateDNS(name string) error {
+	var ips []string
+	for _, instance := range a.GetInstances() {
+		ips = append(ips, instance.PrivateIP)
+	}
+
+	if a.zoneID != "" {
+		return a.r53.UpdateARecords(a.zoneID, name, ips)
+	}
+	return nil
+}
+
 // NewAws returns the Members this local instance belongs to.
-func NewAws() (Cloud, error) {
+func NewAws(zoneID string) (cloud.Cloud, error) {
 	awsSession, err := session.NewSession()
 	if err != nil {
 		return nil, err
@@ -49,12 +64,17 @@ func NewAws() (Cloud, error) {
 		return nil, fmt.Errorf("unable to query instances: %v", err)
 	}
 
+	dns, err := newR53()
+
 	return &localASG{
 		identityDocument: identityDoc,
-		instances:        instances}, nil
+		instances:        instances,
+		r53:              dns,
+		zoneID:           zoneID,
+	}, nil
 }
 
-func queryInstances(identity ec2metadata.EC2InstanceIdentityDocument, awsASG *autoscaling.AutoScaling, awsEC2 *ec2.EC2) ([]Instance, error) {
+func queryInstances(identity ec2metadata.EC2InstanceIdentityDocument, awsASG *autoscaling.AutoScaling, awsEC2 *ec2.EC2) ([]cloud.Instance, error) {
 	instanceID := identity.InstanceID
 	asgName, err := getASGName(instanceID, awsASG)
 	if err != nil {
@@ -82,10 +102,10 @@ func queryInstances(identity ec2metadata.EC2InstanceIdentityDocument, awsASG *au
 		return nil, err
 	}
 
-	var instances []Instance
+	var instances []cloud.Instance
 	for _, reservation := range out.Reservations {
 		for _, instance := range reservation.Instances {
-			instances = append(instances, Instance{
+			instances = append(instances, cloud.Instance{
 				InstanceID: *instance.InstanceId,
 				PrivateIP:  *instance.PrivateIpAddress,
 			})

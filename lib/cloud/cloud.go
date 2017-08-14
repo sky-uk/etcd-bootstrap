@@ -6,6 +6,8 @@ type Cloud interface {
 	GetInstances() []Instance
 	// GetLocalInstance returns the local machine instance.
 	GetLocalInstance() Instance
+	// UpdateDNS updates the DNS provider for this cloud to add records for every member of the etcd cluster.
+	UpdateDNS(name string) error
 }
 
 // Instance represents an instance inside of the auto scaling group.

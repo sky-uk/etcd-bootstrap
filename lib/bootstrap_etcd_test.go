@@ -22,7 +22,7 @@ func TestCreateNewCluster(t *testing.T) {
 
 	etcdCluster := &testCluster{}
 
-	bootstrapper := New(testASG, etcdCluster, &emptyR53{})
+	bootstrapper := New(testASG, etcdCluster)
 	out, err := bootstrapper.BootstrapEtcdFlags()
 	assert.NoError(err)
 	vars := strings.Split(out, "\n")
@@ -63,7 +63,7 @@ func TestExistingCluster(t *testing.T) {
 		},
 	}
 
-	bootstrapper := New(testASG, etcdCluster, &emptyR53{})
+	bootstrapper := New(testASG, etcdCluster)
 	out, err := bootstrapper.BootstrapEtcdFlags()
 	assert.NoError(err)
 	vars := strings.Split(out, "\n")
@@ -104,7 +104,7 @@ func TestJoinAnExistingCluster(t *testing.T) {
 		},
 	}
 
-	bootstrapper := New(testASG, etcdCluster, &emptyR53{})
+	bootstrapper := New(testASG, etcdCluster)
 	out, err := bootstrapper.BootstrapEtcdFlags()
 	assert.NoError(err)
 	vars := strings.Split(out, "\n")
@@ -149,7 +149,7 @@ func TestJoinAnExistingClusterWhenPartiallyInitialised(t *testing.T) {
 		},
 	}
 
-	bootstrapper := New(testASG, etcdCluster, &emptyR53{})
+	bootstrapper := New(testASG, etcdCluster)
 	out, err := bootstrapper.BootstrapEtcdFlags()
 	assert.NoError(err)
 	vars := strings.Split(out, "\n")
