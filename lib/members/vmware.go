@@ -30,7 +30,7 @@ func (m vmwareMembers) GetLocalInstance() Instance {
 }
 
 // NewVMware returns the Members this local instance belongs to.
-func NewVMware(cfg *VmwareConfig, env, role string) (Members, error) {
+func NewVMware(cfg *VmwareConfig) (Members, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	defer cancel()
@@ -42,7 +42,7 @@ func NewVMware(cfg *VmwareConfig, env, role string) (Members, error) {
 	}
 	defer c.Logout(ctx)
 
-	instances, err := findAllInstances(ctx, c, env, role)
+	instances, err := findAllInstances(ctx, c, cfg.Environment, cfg.Role)
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
@@ -134,8 +134,8 @@ type VmwareConfig struct {
 	User string
 	// vCenter password in clear text.
 	Password string
-	// vCenter IP.
-	VCenterIP string
+	// vCenter Hostname or IP.
+	VCenterHost string
 	// vCenter port.
 	VCenterPort string
 	// True if vCenter uses self-signed cert.
@@ -144,13 +144,17 @@ type VmwareConfig struct {
 	RoundTripperCount uint
 	// VMName is the VM name of virtual machine
 	VMName string
+	// Environment tag to filter by
+	Environment string
+	// Role tag to filter by
+	Role string
 }
 
 // NewClient creates a govmomi.Client for use in the examples
 func NewClient(ctx context.Context, cfg *VmwareConfig) (*govmomi.Client, error) {
 	flag.Parse()
 
-	u, err := url.Parse(fmt.Sprintf("https://%s:%s/sdk", cfg.VCenterIP, cfg.VCenterPort))
+	u, err := url.Parse(fmt.Sprintf("https://%s:%s/sdk", cfg.VCenterHost, cfg.VCenterPort))
 	if err != nil {
 		return nil, err
 	}
