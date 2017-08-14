@@ -4,21 +4,21 @@ package bootstrap
 import (
 	"errors"
 
+	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
 	"github.com/sky-uk/etcd-bootstrap/lib/etcdcluster"
-	"github.com/sky-uk/etcd-bootstrap/lib/members"
 	"github.com/stretchr/testify/mock"
 )
 
 type testASG struct {
-	instances []members.Instance
-	local     members.Instance
+	instances []cloud.Instance
+	local     cloud.Instance
 }
 
-func (a *testASG) GetInstances() []members.Instance {
+func (a *testASG) GetInstances() []cloud.Instance {
 	return a.instances
 }
 
-func (a *testASG) GetLocalInstance() members.Instance {
+func (a *testASG) GetLocalInstance() cloud.Instance {
 	return a.local
 }
 

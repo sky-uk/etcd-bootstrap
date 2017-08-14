@@ -1,7 +1,7 @@
-package members
+package cloud
 
-// Members represents the members of an etcd cluster.
-type Members interface {
+// Cloud represents the members of an etcd cluster.
+type Cloud interface {
 	// GetInstances returns all the non-terminated instances that will be part of the etcd cluster.
 	GetInstances() []Instance
 	// GetLocalInstance returns the local machine instance.

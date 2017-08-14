@@ -1,4 +1,4 @@
-package members
+package cloud
 
 import (
 	"errors"
@@ -28,7 +28,7 @@ func (a *localASG) GetLocalInstance() Instance {
 }
 
 // NewAws returns the Members this local instance belongs to.
-func NewAws() (Members, error) {
+func NewAws() (Cloud, error) {
 	awsSession, err := session.NewSession()
 	if err != nil {
 		return nil, err

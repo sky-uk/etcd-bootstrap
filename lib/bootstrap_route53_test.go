@@ -3,17 +3,17 @@ package bootstrap
 import (
 	"testing"
 
-	"github.com/sky-uk/etcd-bootstrap/lib/members"
+	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
 )
 
 func TestAddsInstancesToRoute53Entry(t *testing.T) {
 	// given
 	testASG := &testASG{}
-	testASG.instances = []members.Instance{
+	testASG.instances = []cloud.Instance{
 		{InstanceID: "e1", PrivateIP: "10.50.99.1"},
 		{InstanceID: "e2", PrivateIP: "10.50.199.1"},
 		{InstanceID: "e3", PrivateIP: "10.50.155.1"}}
-	testASG.local = members.Instance{InstanceID: "e2", PrivateIP: "10.50.199.1"}
+	testASG.local = cloud.Instance{InstanceID: "e2", PrivateIP: "10.50.199.1"}
 	etcdCluster := &testCluster{}
 	mockedR53 := new(mockR53)
 	bootstrapper := New(testASG, etcdCluster, mockedR53)

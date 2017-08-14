@@ -7,23 +7,23 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/sky-uk/etcd-bootstrap/lib"
-	"github.com/sky-uk/etcd-bootstrap/lib/members"
+	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
 )
 
 var (
-	cloud string
-    vmwareUsername string
-    vmwarePassword string
-    vmwareHost string
-    vmwarePort string
-    vmwareInsecure bool
-    vmwareAttempts uint
-    vmwareVMName string
-    vmwareEnv string
-    vmwareRole string
-    outputFilename string
-    zoneID string
-    domainName string
+	cloudProvider  string
+	vmwareUsername string
+	vmwarePassword string
+	vmwareHost     string
+	vmwarePort     string
+	vmwareInsecure bool
+	vmwareAttempts uint
+	vmwareVMName   string
+	vmwareEnv      string
+	vmwareRole     string
+	outputFilename string
+	zoneID         string
+	domainName     string
 )
 
 const (
@@ -34,8 +34,8 @@ const (
 )
 
 func init() {
-	flag.StringVar(&cloud, "cloud", "",
-	    "cloud provider to use.  Required, and must be one of 'aws' or 'vmware'")
+	flag.StringVar(&cloudProvider, "cloud", "",
+		"cloud provider to use.  Required, and must be one of 'aws' or 'vmware'")
 	flag.StringVar(&vmwareUsername, "vmware-username", "",
 		"username for vSphere API")
 	flag.StringVar(&vmwarePassword, "vmware-password", "",
@@ -69,8 +69,8 @@ func main() {
 
 	var bootstrapper bootstrap.Bootstrapper
 	var err error
-	if cloud == "vmware" {
-		config := &members.VmwareConfig{
+	if cloudProvider == "vmware" {
+		config := &cloud.VmwareConfig{
 			User:              vmwareUsername,
 			Password:          vmwarePassword,
 			VCenterHost:       vmwareHost,
@@ -78,7 +78,7 @@ func main() {
 			InsecureFlag:      vmwareInsecure,
 			RoundTripperCount: vmwareAttempts,
 			VMName:            vmwareVMName,
-			Environment:	   vmwareEnv,
+			Environment:       vmwareEnv,
 			Role:              vmwareRole,
 		}
 
@@ -112,7 +112,7 @@ func main() {
 }
 
 func validateArguments() {
-	if cloud == "" || (cloud != "aws" && cloud != "vmware") {
+	if cloudProvider == "" || (cloudProvider != "aws" && cloudProvider != "vmware") {
 		log.Fatal("Cloud argument must be one of 'aws' or 'vmware'")
 	}
 }

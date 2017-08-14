@@ -1,4 +1,4 @@
-package members
+package cloud
 
 import (
 	"context"
@@ -30,7 +30,7 @@ func (m vmwareMembers) GetLocalInstance() Instance {
 }
 
 // NewVMware returns the Members this local instance belongs to.
-func NewVMware(cfg *VmwareConfig) (Members, error) {
+func NewVMware(cfg *VmwareConfig) (Cloud, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	defer cancel()
