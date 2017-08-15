@@ -4,22 +4,25 @@ package bootstrap
 import (
 	"errors"
 
-	"github.com/sky-uk/etcd-bootstrap/lib/asg"
+	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
 	"github.com/sky-uk/etcd-bootstrap/lib/etcdcluster"
-	"github.com/stretchr/testify/mock"
 )
 
 type testASG struct {
-	instances []asg.Instance
-	local     asg.Instance
+	instances []cloud.Instance
+	local     cloud.Instance
 }
 
-func (a *testASG) GetInstances() []asg.Instance {
+func (a *testASG) GetInstances() []cloud.Instance {
 	return a.instances
 }
 
-func (a *testASG) GetLocalInstance() asg.Instance {
+func (a *testASG) GetLocalInstance() cloud.Instance {
 	return a.local
+}
+
+func (a *testASG) UpdateDNS(name string) error {
+	return nil
 }
 
 type testCluster struct {
@@ -50,19 +53,4 @@ func (e *testCluster) AddMember(peerURL string) error {
 
 	e.addedMember = append(e.addedMember, peerURL)
 	return nil
-}
-
-type mockR53 struct {
-	mock.Mock
-}
-
-func (m *mockR53) UpdateARecords(zoneID, name string, values []string) error {
-	args := m.Called(zoneID, name, values)
-	return args.Error(0)
-}
-
-type emptyR53 struct{}
-
-func (e *emptyR53) UpdateARecords(string, string, []string) error {
-	return errors.New("shouldn't call me")
 }

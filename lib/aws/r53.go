@@ -1,4 +1,4 @@
-package r53
+package aws
 
 import (
 	log "github.com/Sirupsen/logrus"
@@ -21,8 +21,8 @@ type impl struct {
 	r53 *route53.Route53
 }
 
-// New creates a new R53.
-func New() (R53, error) {
+// newR53 creates a new R53.
+func newR53() (R53, error) {
 	awsSession, err := session.NewSession()
 	if err != nil {
 		return nil, err
