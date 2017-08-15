@@ -59,7 +59,7 @@ func init() {
 	flag.StringVar(&zoneID, "route53-zone-id", "",
 		"route53 zone ID to update with the IP addresses of the etcd auto scaling group")
 	flag.StringVar(&domainName, "domain-name", "",
-		"domain name to update inside the DNS provider")
+		"domain name to update inside the DNS provider, eg. 'etcd'")
 }
 
 func main() {
@@ -83,7 +83,7 @@ func main() {
 		}
 
 		bootstrapper, err = bootstrap.LocalVMWare(config)
-	} else {
+	} else if cloudProvider == "aws" {
 		bootstrapper, err = bootstrap.LocalASG(zoneID)
 	}
 	if err != nil {

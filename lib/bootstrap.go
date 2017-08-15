@@ -13,7 +13,7 @@ type Bootstrapper interface {
 	// It's intended to be sourced in startup scripts.
 	BootstrapEtcdFlags() (string, error)
 	// BootstrapDNS adds the etcd instances to the DNS provider for the given cloud.
-	BootstrapDNS(name string) error
+	BootstrapDNS(domainName string) error
 }
 
 type bootstrapper struct {
