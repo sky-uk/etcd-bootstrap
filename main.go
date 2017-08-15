@@ -85,6 +85,8 @@ func main() {
 		bootstrapper, err = bootstrap.LocalVMWare(config)
 	} else if cloudProvider == "aws" {
 		bootstrapper, err = bootstrap.LocalASG(zoneID)
+	} else {
+		log.Fatalf("Unknown cloud provider '%s'. Must be 'aws' or 'vmware'.", cloudProvider)
 	}
 	if err != nil {
 		log.Fatalf("Unable to initialise bootstrapper: %v", err)

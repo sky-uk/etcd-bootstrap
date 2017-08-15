@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/view"
@@ -43,20 +42,17 @@ func NewVMware(cfg *Config) (cloud.Cloud, error) {
 
 	c, err := NewClient(ctx, cfg)
 	if err != nil {
-		log.Error(err)
 		return nil, err
 	}
 	defer c.Logout(ctx)
 
 	instances, err := findAllInstances(ctx, c, cfg.Environment, cfg.Role)
 	if err != nil {
-		log.Error(err)
 		return nil, err
 	}
 
 	instance, err := findThisInstance(cfg, instances)
 	if err != nil {
-		log.Error(err)
 		return nil, err
 	}
 
@@ -73,7 +69,6 @@ func findAllInstances(ctx context.Context, c *govmomi.Client, env, role string) 
 
 	v, err := m.CreateContainerView(ctx, c.ServiceContent.RootFolder, []string{"VirtualMachine"}, true)
 	if err != nil {
-		log.Error(err)
 		return nil, err
 	}
 
@@ -85,7 +80,6 @@ func findAllInstances(ctx context.Context, c *govmomi.Client, env, role string) 
 	// Does restricting the scope for the fields we're after make it faster?
 	err = v.Retrieve(ctx, []string{"VirtualMachine"}, []string{"config.name", "config.extraConfig", "summary.runtime", "summary.guest"}, &vms)
 	if err != nil {
-		log.Error(err)
 		return nil, err
 	}
 
