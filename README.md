@@ -51,6 +51,8 @@ Optionally etcd-bootstrap can also register all the IPs in the autoscaling group
 If zone `MYZONEID` has domain name `example.com`, this will update the domain name `etcd.example.com` with all
 of the IPs. This lets clients use round robin DNS for connecting to the cluster.
 
+`-route53-zone-id` is **not supported** when using `-cloud vmware`.
+
 ## IAM role
 
 Instances must have the following IAM policy rules:
