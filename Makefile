@@ -47,21 +47,32 @@ test :
 git_rev := $(shell git rev-parse --short HEAD)
 git_tag := $(shell git tag --points-at=$(git_rev))
 etcd_version := v2.3.7
-image := skycirrus/aws-etcd-$(etcd_version)
+aws_image := skycirrus/aws-etcd-$(etcd_version)
+vmware_image := skycirrus/vmware-etcd-$(etcd_version)
 
 docker : build
-	@echo "== build"
+	@echo "== build aws"
 	cp etcd-bootstrap aws-etcd/
-	docker build -t $(image):latest aws-etcd/
+	docker build -t $(aws_image):latest aws-etcd/
 	rm -f aws-etcd/etcd-bootstrap
+
+	@echo "== build vmware"
+	cp etcd-bootstrap vmware-etcd/
+	docker build -t $(vmware_image):latest vmware-etcd
+	rm -f vmware-etcd/etcd-bootstrap
 
 release : docker
 	@echo "== release"
 ifeq ($(strip $(git_tag)),)
 	@echo "no tag on $(git_rev), skipping release"
 else
-	@echo "releasing $(image):$(git_tag)"
+	@echo "releasing $(aws_image):$(git_tag)"
 	@docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)
-	docker tag $(image):latest $(image):$(git_tag)
-	docker push $(image):$(git_tag)
+	docker tag $(aws_image):latest $(aws_image):$(git_tag)
+	docker push $(aws_image):$(git_tag)
+
+    @echo "releasing $(vmware_image):$(git_tag)"
+    @docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)
+    docker tag $(vmware_image):latest $(vmware_image):$(git_tag)
+    docker push $(vmware_image):$(git_tag)
 endif
