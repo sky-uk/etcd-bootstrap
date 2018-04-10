@@ -6,10 +6,11 @@ if [ -n "$VMWARE_CREDENTIALS" ]; then
         exit 1
     else
         source $VMWARE_CREDENTIALS
+        ETCD_BOOTSTRAP_FLAGS+=" -vmware-username $VMWARE_USERNAME -vmware-password $VMWARE_PASSWORD"
     fi
 fi
 
-/etcd-bootstrap -o /etcd-bootstrap.conf $(eval echo ${ETCD_BOOTSTRAP_FLAGS})
+/etcd-bootstrap -o /etcd-bootstrap.conf $ETCD_BOOTSTRAP_FLAGS
 set -a
 source /etcd-bootstrap.conf
 set +a
