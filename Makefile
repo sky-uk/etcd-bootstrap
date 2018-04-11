@@ -71,8 +71,8 @@ else
 	docker tag $(cloud_image):latest $(cloud_image):$(git_tag)
 	docker push $(cloud_image):$(git_tag)
 
-    @echo "releasing $(vmware_image):$(git_tag)"
-    @docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)
-    docker tag $(vmware_image):latest $(vmware_image):$(git_tag)
-    docker push $(vmware_image):$(git_tag)
+	@echo "releasing $(vmware_image):$(git_tag)"
+	@docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)
+	docker tag $(vmware_image):latest $(vmware_image):$(git_tag)
+	docker push $(vmware_image):$(git_tag)
 endif
