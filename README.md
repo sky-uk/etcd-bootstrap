@@ -12,21 +12,31 @@ It's intended for use with etcd2 and one of:
 
 The cloud type used is determined by the `-cloud (aws|vmware|gcp)` command line argument
 
-## aws-etcd container
+## cloud-etcd container
 
 etcd2 container that bootstraps in the cloud. Run it the same as the etcd container:
 
-    docker run skycirrus/aws-etcd-v2.3.7:1.0.0 -h # lists all the etcd options
+    docker run skycirrus/cloud-etcd-v2.3.8:1.1.0 -h # lists all the etcd options
 
 You can pass in any flag that etcd takes normally.
+
+### AWS
 
 The wrapper will take care of setting all the required flags to create or join an existing
 etcd cluster, based on the ASG the local instance is on.
 
 To pass flags to etcd-bootstrap, set the `ETCD_BOOTSTRAP_FLAGS` environment variable.
 
-    docker run -e ETCD_BOOTSTRAP_FLAGS='-cloud aws -route53-zone-id MYZONEID -domain-name etcd' skycirrus/aws-etcd-v2.3.7:1.0.0
+    docker run -e ETCD_BOOTSTRAP_FLAGS='-cloud aws -route53-zone-id MY_ZONE_ID -domain-name etcd' skycirrus/cloud-etcd-v2.3.8:1.1.0
 
+### GCP
+
+The wrapper will take care of setting all the required flags to create or join an existing
+etcd cluster, based on the flags provided.
+
+To pass flags to etcd-bootstrap, set the `ETCD_BOOTSTRAP_FLAGS` environment variable.
+
+    docker run -e ETCD_BOOTSTRAP_FLAGS='-cloud gcp -gcp-project-id MY_PROJECT_ID -gcp-environment MY_ENV -gcp-role ETCD_ROLE etcd' skycirrus/cloud-etcd-v2.3.8:1.1.0
 
 ## vmware-etcd container
 
@@ -46,8 +56,8 @@ append the appropriate flags to `ETCD_BOOTSTRAP_FLAGS`.
 
     docker run -e VMWARE_CREDENTIALS='/etc/vmware-credentials' \
                -e ETCD_BOOTSTRAP_FLAGS='-cloud vmware ...' \
-               skycirrus/vmware-etcd-v2.3.7:1.0.0
-    
+               skycirrus/vmware-etcd-v2.3.8:1.1.0
+
 ## Command usage
 
 Create instances inside of an ASG, vSphere, or GCP. Then run:
@@ -126,3 +136,6 @@ The GCP cloud mode requires additional options:
 
 In order for the role filters to work, the VMs must have been provisioned with extra configuration
 labels named "environment" and "role" set to the values provided on the command line.
+
+In case a node has multiple Network Interfaces, the GCP bootstrapper will take the
+private ip of the first available one.

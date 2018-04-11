@@ -1,6 +1,6 @@
 FROM alpine:3.4
 
-ENV VERSION v2.3.7
+ENV VERSION v2.3.8
 COPY checksums /
 
 RUN apk add --no-cache curl

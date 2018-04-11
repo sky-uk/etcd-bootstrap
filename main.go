@@ -78,8 +78,6 @@ func init() {
 func main() {
 	flag.Parse()
 
-	validateArguments()
-
 	bootstrapper, err := createBootstrapper()
 	if err != nil {
 		log.Fatalf("Unable to initialise bootstrapper: %v", err)
@@ -137,10 +135,4 @@ func createBootstrapper() (bootstrap.Bootstrapper, error) {
 		err = fmt.Errorf("unknown cloud provider '%s': must be 'aws', 'vmware' or 'gcp'", cloudProvider)
 	}
 	return bootstrapper, err
-}
-
-func validateArguments() {
-	if cloudProvider == "" || (cloudProvider != "aws" && cloudProvider != "vmware" && cloudProvider != "gcp") {
-		log.Fatal("Cloud argument must be one of 'aws', 'vmware' or 'gcp'")
-	}
 }

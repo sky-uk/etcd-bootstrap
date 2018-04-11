@@ -1,5 +1,7 @@
 # v1.1.0
 Add support for discovering cluster members using the GCP API.
+Renames aws image to cloud.
+Updates etcd version to 2.3.8.
 
 # v1.0.0
 
