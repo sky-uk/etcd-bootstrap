@@ -5,8 +5,11 @@ import (
 
 	"io/ioutil"
 
+	"fmt"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/sky-uk/etcd-bootstrap/lib"
+	"github.com/sky-uk/etcd-bootstrap/lib/gcp"
 	"github.com/sky-uk/etcd-bootstrap/lib/vmware"
 )
 
@@ -24,6 +27,9 @@ var (
 	outputFilename string
 	zoneID         string
 	domainName     string
+	gcpProjectID   string
+	gcpEnv         string
+	gcpRole        string
 )
 
 const (
@@ -60,6 +66,13 @@ func init() {
 		"route53 zone ID to update with the IP addresses of the etcd auto scaling group")
 	flag.StringVar(&domainName, "domain-name", "",
 		"domain name to update inside the DNS provider, eg. 'etcd'")
+
+	flag.StringVar(&gcpProjectID, "gcp-project-id", "",
+		"value of the GCP 'project id' to query")
+	flag.StringVar(&gcpEnv, "gcp-environment", "",
+		"value of the 'environment' label in GCP nodes to filter them by")
+	flag.StringVar(&gcpRole, "gcp-role", "",
+		"value of the 'role' label in GCP nodes to filter them by")
 }
 
 func main() {
@@ -67,27 +80,7 @@ func main() {
 
 	validateArguments()
 
-	var bootstrapper bootstrap.Bootstrapper
-	var err error
-	if cloudProvider == "vmware" {
-		config := &vmware.Config{
-			User:              vmwareUsername,
-			Password:          vmwarePassword,
-			VCenterHost:       vmwareHost,
-			VCenterPort:       vmwarePort,
-			InsecureFlag:      vmwareInsecure,
-			RoundTripperCount: vmwareAttempts,
-			VMName:            vmwareVMName,
-			Environment:       vmwareEnv,
-			Role:              vmwareRole,
-		}
-
-		bootstrapper, err = bootstrap.LocalVMWare(config)
-	} else if cloudProvider == "aws" {
-		bootstrapper, err = bootstrap.LocalASG(zoneID)
-	} else {
-		log.Fatalf("Unknown cloud provider '%s'. Must be 'aws' or 'vmware'.", cloudProvider)
-	}
+	bootstrapper, err := createBootstrapper()
 	if err != nil {
 		log.Fatalf("Unable to initialise bootstrapper: %v", err)
 	}
@@ -113,8 +106,41 @@ func main() {
 	}
 }
 
+func createBootstrapper() (bootstrap.Bootstrapper, error) {
+	var bootstrapper bootstrap.Bootstrapper
+	var err error
+	switch cloudProvider {
+	case "vmware":
+		config := &vmware.Config{
+			User:              vmwareUsername,
+			Password:          vmwarePassword,
+			VCenterHost:       vmwareHost,
+			VCenterPort:       vmwarePort,
+			InsecureFlag:      vmwareInsecure,
+			RoundTripperCount: vmwareAttempts,
+			VMName:            vmwareVMName,
+			Environment:       vmwareEnv,
+			Role:              vmwareRole,
+		}
+
+		bootstrapper, err = bootstrap.LocalVMWare(config)
+	case "aws":
+		bootstrapper, err = bootstrap.LocalASG(zoneID)
+	case "gcp":
+		config := &gcp.Config{
+			ProjectID:   gcpProjectID,
+			Environment: gcpEnv,
+			Role:        gcpRole,
+		}
+		bootstrapper, err = bootstrap.GCP(config)
+	default:
+		err = fmt.Errorf("unknown cloud provider '%s': must be 'aws', 'vmware' or 'gcp'", cloudProvider)
+	}
+	return bootstrapper, err
+}
+
 func validateArguments() {
-	if cloudProvider == "" || (cloudProvider != "aws" && cloudProvider != "vmware") {
-		log.Fatal("Cloud argument must be one of 'aws' or 'vmware'")
+	if cloudProvider == "" || (cloudProvider != "aws" && cloudProvider != "vmware" && cloudProvider != "gcp") {
+		log.Fatal("Cloud argument must be one of 'aws', 'vmware' or 'gcp'")
 	}
 }

@@ -90,10 +90,7 @@ func (b *bootstrapper) reconcileMembers() error {
 	if err := b.removeOldEtcdMembers(); err != nil {
 		return err
 	}
-	if err := b.addLocalInstanceToEtcd(); err != nil {
-		return err
-	}
-	return nil
+	return b.addLocalInstanceToEtcd()
 }
 
 func (b *bootstrapper) removeOldEtcdMembers() error {

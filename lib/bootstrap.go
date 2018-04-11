@@ -4,6 +4,7 @@ import (
 	"github.com/sky-uk/etcd-bootstrap/lib/aws"
 	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
 	"github.com/sky-uk/etcd-bootstrap/lib/etcdcluster"
+	"github.com/sky-uk/etcd-bootstrap/lib/gcp"
 	"github.com/sky-uk/etcd-bootstrap/lib/vmware"
 )
 
@@ -41,6 +42,15 @@ func LocalVMWare(config *vmware.Config) (Bootstrapper, error) {
 		return nil, err
 	}
 	return newBootstrapper(vmware)
+}
+
+// GCP creates a bootstrapper to query GCP API.
+func GCP(config *gcp.Config) (Bootstrapper, error) {
+	gcp, err := gcp.NewGCP(config)
+	if err != nil {
+		return nil, err
+	}
+	return newBootstrapper(gcp)
 }
 
 func newBootstrapper(members cloud.Cloud) (Bootstrapper, error) {

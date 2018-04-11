@@ -1,3 +1,6 @@
+# v1.1.0
+Add support for discovering cluster members using the GCP API.
+
 # v1.0.0
 
 Add support for discovering cluster members using the VMWare vSphere API.
