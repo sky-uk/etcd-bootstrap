@@ -7,9 +7,10 @@ to automatically join existing clusters and create new ones if necessary.
 
 It's intended for use with etcd2 and one of:
   * An AWS Auto Scaling group; or
-  * A vSphere server
+  * A vSphere server; or
+  * A GCP Managed Instance group
 
-The cloud type used is determined by the `-cloud (aws|vmware)` command line argument
+The cloud type used is determined by the `-cloud (aws|vmware|gcp)` command line argument
 
 ## aws-etcd container
 
@@ -49,7 +50,7 @@ append the appropriate flags to `ETCD_BOOTSTRAP_FLAGS`.
     
 ## Command usage
 
-Create instances inside of an ASG or in vSphere. Then run:
+Create instances inside of an ASG, vSphere, or GCP. Then run:
 
     ./etcd-bootstrap -o /var/run/bootstrap.conf
     source /var/run/bootstrap.conf
@@ -72,9 +73,15 @@ Optionally etcd-bootstrap can also register all the IPs in the autoscaling group
 If zone `MYZONEID` has domain name `example.com`, this will update the domain name `etcd.example.com` with all
 of the IPs. This lets clients use round robin DNS for connecting to the cluster.
 
-`-route53-zone-id` is **not supported** when using `-cloud vmware`.
+`-route53-zone-id` is **not supported** when using `-cloud (vmware|gcp)`.
 
-## IAM role
+## Cloud-specific notes
+
+### AWS
+
+AWS nodes must be created in an ASG of which the node on which the container runs must be a part.
+
+#### IAM role
 
 Instances must have the following IAM policy rules:
 
@@ -97,12 +104,6 @@ Instances must have the following IAM policy rules:
 
 ```
 
-## Cloud-specific notes
-
-### AWS
-
-AWS nodes must be created in an ASG of which the node on which the container runs must be a part.
-
 ### VMWare
 
 The VMWare mode requires configuring with connectivity information to the vSphere VCenter API.  See usage help for
@@ -113,3 +114,15 @@ required arguments.  In addition to connectivity, the VMWare mode requires two f
 
 In order for the environment and role filters to work, the VMs must have been provisioned with extra configuration
 parameters named "tags_environment" and "tags_role" set to the values provided on the command line.
+
+### GCP
+
+GCP nodes must be created in an MIG of which the node on which the container runs must be a part.
+The GCP cloud mode requires additional options:
+
+ * `gcp-project-id` - the name of the project to query
+ * `gcp-environment` - the name of the environment to filter
+ * `gcp-role` - the role to filter
+
+In order for the role filters to work, the VMs must have been provisioned with extra configuration
+labels named "environment" and "role" set to the values provided on the command line.
