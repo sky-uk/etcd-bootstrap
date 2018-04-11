@@ -117,7 +117,9 @@ func findAllInstances(client *compute.Service, cfg *Config) ([]cloud.Instance, e
 		}
 
 		for _, instance := range result.Items {
-			// Taking the first available network interface
+			// Taking the first available network interface in case there are multiple.
+			// The networkInterface.NetworkIP will only contain private IPs:
+			// https://cloud.google.com/compute/docs/reference/rest/v1/instances/list
 			if len(instance.NetworkInterfaces) > 0 {
 				instances = append(instances, cloud.Instance{
 					InstanceID: instance.Name,
