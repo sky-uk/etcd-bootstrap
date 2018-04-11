@@ -26,6 +26,27 @@ To pass flags to etcd-bootstrap, set the `ETCD_BOOTSTRAP_FLAGS` environment vari
 
     docker run -e ETCD_BOOTSTRAP_FLAGS='-cloud aws -route53-zone-id MYZONEID -domain-name etcd' skycirrus/aws-etcd-v2.3.7:1.0.0
 
+
+## vmware-etcd container
+
+On top of the functionality provided by the aws-etcd container, the vmware-etcd container has support to read
+credentials from a user specified file.
+
+To use this feature, set the `VMWARE_CREDENTIALS` environment variable with reference to the location of the file that
+contains your credentials. e.g.
+
+```bash
+VMWARE_USERNAME=myusername
+VMWARE_PASSWORD=supersecret
+```
+
+If the `VMWARE_CREDENTIALS` environment variable is then set, the wrapper script will then source this file and then
+append the appropriate flags to `ETCD_BOOTSTRAP_FLAGS`.
+
+    docker run -e VMWARE_CREDENTIALS='/etc/vmware-credentials' \
+               -e ETCD_BOOTSTRAP_FLAGS='-cloud vmware ...' \
+               skycirrus/vmware-etcd-v2.3.7:1.0.0
+    
 ## Command usage
 
 Create instances inside of an ASG or in vSphere. Then run:
