@@ -22,7 +22,7 @@ type Config struct {
 }
 
 // NewGCP returns the Members matching the cfg.
-func NewGCP(cfg *Config) (cloud.Cloud, error) {
+func NewGCP(cfg *Config, zoneID string, project string) (cloud.Cloud, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	defer cancel()
@@ -42,9 +42,14 @@ func NewGCP(cfg *Config) (cloud.Cloud, error) {
 		return nil, err
 	}
 
+	dns, err := newGDNS()
+
 	members := &gcpMembers{
 		instances: instances,
 		instance:  *instance,
+		zoneID:    zoneID,
+		gdns:      dns,
+		project:   project,
 	}
 
 	return members, nil
@@ -69,6 +74,9 @@ func findThisInstance() (*cloud.Instance, error) {
 type gcpMembers struct {
 	instances []cloud.Instance
 	instance  cloud.Instance
+	zoneID    string
+	gdns      GDNS
+	project   string
 }
 
 func (m *gcpMembers) GetInstances() []cloud.Instance {
@@ -79,8 +87,19 @@ func (m *gcpMembers) GetLocalInstance() cloud.Instance {
 	return m.instance
 }
 
+func (m *gcpMembers) GetZoneID() string {
+	return m.zoneID
+}
+
 func (m *gcpMembers) UpdateDNS(name string) error {
-	// No DNS provider is enabled for GCP
+	var ips []string
+	for _, instance := range m.GetInstances() {
+		ips = append(ips, instance.PrivateIP)
+	}
+
+	if m.zoneID != "" {
+		return m.gdns.UpdateARecords(m.GetZoneID(), name, ips)
+	}
 	return nil
 }
 

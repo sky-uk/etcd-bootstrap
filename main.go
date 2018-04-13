@@ -130,7 +130,7 @@ func createBootstrapper() (bootstrap.Bootstrapper, error) {
 			Environment: gcpEnv,
 			Role:        gcpRole,
 		}
-		bootstrapper, err = bootstrap.GCP(config)
+		bootstrapper, err = bootstrap.GCP(config, zoneID, gcpProjectID)
 	default:
 		err = fmt.Errorf("unknown cloud provider '%s': must be 'aws', 'vmware' or 'gcp'", cloudProvider)
 	}

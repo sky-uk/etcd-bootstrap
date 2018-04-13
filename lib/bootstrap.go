@@ -45,8 +45,8 @@ func LocalVMWare(config *vmware.Config) (Bootstrapper, error) {
 }
 
 // GCP creates a bootstrapper to query GCP API.
-func GCP(config *gcp.Config) (Bootstrapper, error) {
-	gcp, err := gcp.NewGCP(config)
+func GCP(config *gcp.Config, zoneID string, project string) (Bootstrapper, error) {
+	gcp, err := gcp.NewGCP(config, zoneID, project)
 	if err != nil {
 		return nil, err
 	}
