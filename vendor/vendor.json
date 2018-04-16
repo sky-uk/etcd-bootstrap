@@ -263,6 +263,12 @@
 			"revisionTime": "2016-01-10T10:55:54Z"
 		},
 		{
+			"checksumSHA1": "cdaCg2yarOZOnrFPZzN9PVvGOAo=",
+			"path": "github.com/sky-uk/etcd-bootstrap/lib/cloud",
+			"revision": "b3fcc4ea4367b334e20aab33fb9f52113efb35ee",
+			"revisionTime": "2018-04-11T15:48:30Z"
+		},
+		{
 			"checksumSHA1": "K0crHygPTP42i1nLKWphSlvOQJw=",
 			"path": "github.com/stretchr/objx",
 			"revision": "1a9d0bb9f541897e62256577b352fdbc1fb4fd94",
@@ -437,8 +443,8 @@
 		{
 			"checksumSHA1": "dK1lgJgWBTgeFmP9XzblzCV25lk=",
 			"path": "google.golang.org/api/dns/v1",
-			"revision": "9c79deebf7496e355d7e95d82d4af1fe4e769b2f",
-			"revisionTime": "2018-04-16T00:04:00Z"
+			"revision": "fca24fcb41126b846105a93fb9e30f416bdd55ce",
+			"revisionTime": "2018-04-13T00:03:47Z"
 		},
 		{
 			"checksumSHA1": "EooPqEpEyY/7NCRwHDMWhhlkQNw=",

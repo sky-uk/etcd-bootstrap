@@ -56,15 +56,15 @@ func (r *impl) UpdateARecords(project string, managedZone string, name string, v
 	}
 
 	dnsChanges := &dns.Change{
-		Additions: recordSetUdpate,
+		Additions: []*dns.ResourceRecordSet{recordSetUdpate},
 	}
 
-	resp, err := r.gdns.Changes.Create(project, managedZone, dnsChanges).Context(ctx).Do()
+	_, err := r.gdns.Changes.Create(project, managedZone, dnsChanges).Context(context.Background()).Do()
 	if err != nil {
 		return fmt.Errorf("unable to update record : %v", err)
 	}
 
-	log.Infof("Successfully set %q to %v", fqdn, values)
+	//log.Infof("Successfully set %q to %v", fqdn, values)
 
 	return nil
 }
