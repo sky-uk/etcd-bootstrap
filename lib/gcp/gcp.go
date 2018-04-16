@@ -42,7 +42,7 @@ func NewGCP(cfg *Config, zoneID string, project string) (cloud.Cloud, error) {
 		return nil, err
 	}
 
-	dns, err := newGDNS()
+	dns, err := newGDNS(cfg)
 
 	members := &gcpMembers{
 		instances: instances,
@@ -98,7 +98,7 @@ func (m *gcpMembers) UpdateDNS(name string) error {
 	}
 
 	if m.zoneID != "" {
-		return m.gdns.UpdateARecords(m.GetZoneID(), name, ips)
+		return m.gdns.UpdateARecords(m.project, m.GetZoneID(), name, ips)
 	}
 	return nil
 }
