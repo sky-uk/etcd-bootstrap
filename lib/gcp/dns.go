@@ -64,7 +64,7 @@ func (r *impl) UpdateARecords(project string, managedZone string, name string, v
 		return fmt.Errorf("unable to update record : %v", err)
 	}
 
-	//log.Infof("Successfully set %q to %v", fqdn, values)
+	fmt.Printf("Successfully set %s to %v", fqdn, values)
 
 	return nil
 }
