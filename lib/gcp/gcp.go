@@ -8,7 +8,7 @@ import (
 	"cloud.google.com/go/compute/metadata"
 	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
 	"golang.org/x/oauth2/google"
-	compute "google.golang.org/api/compute/v1"
+	"google.golang.org/api/compute/v1"
 )
 
 // Config is the configuration required to talk to GCP APIs to fetch a list of nodes
@@ -19,15 +19,17 @@ type Config struct {
 	Environment string
 	// Role tag to filter by
 	Role string
+	// ManagedZone the name of the managed zone
+	ManagedZone string
 }
 
 // NewGCP returns the Members matching the cfg.
-func NewGCP(cfg *Config, zoneID string, project string) (cloud.Cloud, error) {
+func NewGCP(cfg *Config) (cloud.Cloud, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	defer cancel()
 
-	c, err := newClient(ctx, cfg)
+	c, err := newClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create GCP compute API client: %v", err)
 	}
@@ -42,14 +44,14 @@ func NewGCP(cfg *Config, zoneID string, project string) (cloud.Cloud, error) {
 		return nil, err
 	}
 
-	dns, err := newGDNS(cfg)
+	dns, err := newGDNS()
 
 	members := &gcpMembers{
 		instances: instances,
 		instance:  *instance,
-		zoneID:    zoneID,
+		zoneName:  cfg.ManagedZone,
 		gdns:      dns,
-		project:   project,
+		project:   cfg.ProjectID,
 	}
 
 	return members, nil
@@ -74,7 +76,7 @@ func findThisInstance() (*cloud.Instance, error) {
 type gcpMembers struct {
 	instances []cloud.Instance
 	instance  cloud.Instance
-	zoneID    string
+	zoneName  string
 	gdns      GDNS
 	project   string
 }
@@ -87,8 +89,8 @@ func (m *gcpMembers) GetLocalInstance() cloud.Instance {
 	return m.instance
 }
 
-func (m *gcpMembers) GetZoneID() string {
-	return m.zoneID
+func (m *gcpMembers) GetZoneName() string {
+	return m.zoneName
 }
 
 func (m *gcpMembers) UpdateDNS(name string) error {
@@ -97,13 +99,13 @@ func (m *gcpMembers) UpdateDNS(name string) error {
 		ips = append(ips, instance.PrivateIP)
 	}
 
-	if m.zoneID != "" {
-		return m.gdns.UpdateARecords(m.project, m.GetZoneID(), name, ips)
+	if m.zoneName != "" {
+		return m.gdns.UpdateARecords(m.project, m.GetZoneName(), name, ips)
 	}
 	return nil
 }
 
-func newClient(ctx context.Context, cfg *Config) (*compute.Service, error) {
+func newClient(ctx context.Context) (*compute.Service, error) {
 	client, err := google.DefaultClient(ctx, compute.ComputeScope)
 	if err != nil {
 		return nil, err

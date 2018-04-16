@@ -30,6 +30,7 @@ var (
 	gcpProjectID   string
 	gcpEnv         string
 	gcpRole        string
+	gcpManagedZone string
 )
 
 const (
@@ -73,6 +74,8 @@ func init() {
 		"value of the 'environment' label in GCP nodes to filter them by")
 	flag.StringVar(&gcpRole, "gcp-role", "",
 		"value of the 'role' label in GCP nodes to filter them by")
+	flag.StringVar(&gcpManagedZone, "gcp-managed-zone", "",
+		"gcp managed zone name")
 }
 
 func main() {
@@ -129,8 +132,9 @@ func createBootstrapper() (bootstrap.Bootstrapper, error) {
 			ProjectID:   gcpProjectID,
 			Environment: gcpEnv,
 			Role:        gcpRole,
+			ManagedZone: gcpManagedZone,
 		}
-		bootstrapper, err = bootstrap.GCP(config, zoneID, gcpProjectID)
+		bootstrapper, err = bootstrap.GCP(config)
 	default:
 		err = fmt.Errorf("unknown cloud provider '%s': must be 'aws', 'vmware' or 'gcp'", cloudProvider)
 	}
