@@ -3,11 +3,9 @@ package gcp
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
 	"golang.org/x/oauth2/google"
-	"google.golang.org/api/dns/v1"
+	dns "google.golang.org/api/dns/v1"
 )
 
 // GDNS abstracts interactions with GCP dns.
@@ -50,7 +48,7 @@ func (r *impl) UpdateARecords(project string, managedZone string, name string, v
 
 	fqdn := name + "." + managedZone
 
-	recordSetUdpate := &ResourceRecordSet{
+	recordSetUdpate := &dns.ResourceRecordSet{
 		Name:    fqdn,
 		Type:    "A",
 		Ttl:     300,
@@ -61,7 +59,7 @@ func (r *impl) UpdateARecords(project string, managedZone string, name string, v
 		Additions: recordSetUdpate,
 	}
 
-	resp, err := dns.Changes.Create(project, managedZone, dnsChanges).Context(ctx).Do()
+	resp, err := r.gdns.Changes.Create(project, managedZone, dnsChanges).Context(ctx).Do()
 	if err != nil {
 		return fmt.Errorf("unable to update record : %v", err)
 	}

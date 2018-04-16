@@ -8,7 +8,7 @@ import (
 	"cloud.google.com/go/compute/metadata"
 	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
 	"golang.org/x/oauth2/google"
-	"google.golang.org/api/compute/v1"
+	compute "google.golang.org/api/compute/v1"
 )
 
 // Config is the configuration required to talk to GCP APIs to fetch a list of nodes
