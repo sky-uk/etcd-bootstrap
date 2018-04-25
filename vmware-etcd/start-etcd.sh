@@ -6,7 +6,15 @@ if [ -n "$VMWARE_CREDENTIALS" ]; then
         exit 1
     else
         source $VMWARE_CREDENTIALS
-        ETCD_BOOTSTRAP_FLAGS+=" -vmware-username $VMWARE_USERNAME -vmware-password $VMWARE_PASSWORD"
+        if [ -z "$VMWARE_USERNAME" ]; then
+            echo '$VMWARE_USERNAME is missing'
+            exit 1
+        fi
+        if [ -z "$VMWARE_PASSWORD" ]; then
+            echo '$VMWARE_USERNAME is missing'
+            exit 1
+        fi
+        ETCD_BOOTSTRAP_FLAGS="$ETCD_BOOTSTRAP_FLAGS -vmware-username $VMWARE_USERNAME -vmware-password $VMWARE_PASSWORD"
     fi
 fi
 
