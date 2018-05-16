@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/sky-uk/etcd-bootstrap/lib"
+	bootstrap "github.com/sky-uk/etcd-bootstrap/lib"
 	"github.com/sky-uk/etcd-bootstrap/lib/gcp"
 	"github.com/sky-uk/etcd-bootstrap/lib/vmware"
 )
@@ -30,6 +30,7 @@ var (
 	gcpProjectID   string
 	gcpEnv         string
 	gcpRole        string
+	gcpManagedZone string
 )
 
 const (
@@ -73,6 +74,8 @@ func init() {
 		"value of the 'environment' label in GCP nodes to filter them by")
 	flag.StringVar(&gcpRole, "gcp-role", "",
 		"value of the 'role' label in GCP nodes to filter them by")
+	flag.StringVar(&gcpManagedZone, "gcp-managed-zone", "",
+		"gcp managed zone name")
 }
 
 func main() {
@@ -129,6 +132,7 @@ func createBootstrapper() (bootstrap.Bootstrapper, error) {
 			ProjectID:   gcpProjectID,
 			Environment: gcpEnv,
 			Role:        gcpRole,
+			ManagedZone: gcpManagedZone,
 		}
 		bootstrapper, err = bootstrap.GCP(config)
 	default:

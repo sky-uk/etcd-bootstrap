@@ -19,6 +19,8 @@ type Config struct {
 	Environment string
 	// Role tag to filter by
 	Role string
+	// ManagedZone the name of the managed zone
+	ManagedZone string
 }
 
 // NewGCP returns the Members matching the cfg.
@@ -27,7 +29,7 @@ func NewGCP(cfg *Config) (cloud.Cloud, error) {
 
 	defer cancel()
 
-	c, err := newClient(ctx, cfg)
+	c, err := newClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create GCP compute API client: %v", err)
 	}
@@ -42,9 +44,14 @@ func NewGCP(cfg *Config) (cloud.Cloud, error) {
 		return nil, err
 	}
 
+	dns, err := newGDNS()
+
 	members := &gcpMembers{
 		instances: instances,
 		instance:  *instance,
+		zoneName:  cfg.ManagedZone,
+		gdns:      dns,
+		project:   cfg.ProjectID,
 	}
 
 	return members, nil
@@ -69,6 +76,9 @@ func findThisInstance() (*cloud.Instance, error) {
 type gcpMembers struct {
 	instances []cloud.Instance
 	instance  cloud.Instance
+	zoneName  string
+	gdns      GDNS
+	project   string
 }
 
 func (m *gcpMembers) GetInstances() []cloud.Instance {
@@ -79,12 +89,23 @@ func (m *gcpMembers) GetLocalInstance() cloud.Instance {
 	return m.instance
 }
 
+func (m *gcpMembers) GetZoneName() string {
+	return m.zoneName
+}
+
 func (m *gcpMembers) UpdateDNS(name string) error {
-	// No DNS provider is enabled for GCP
+	var ips []string
+	for _, instance := range m.GetInstances() {
+		ips = append(ips, instance.PrivateIP)
+	}
+
+	if m.zoneName != "" {
+		return m.gdns.UpdateARecords(m.project, m.GetZoneName(), name, ips)
+	}
 	return nil
 }
 
-func newClient(ctx context.Context, cfg *Config) (*compute.Service, error) {
+func newClient(ctx context.Context) (*compute.Service, error) {
 	client, err := google.DefaultClient(ctx, compute.ComputeScope)
 	if err != nil {
 		return nil, err

@@ -37,20 +37,20 @@ func LocalASG(zoneID string) (Bootstrapper, error) {
 
 // LocalVMWare creates a bootstrapper wired to the VMWare vSphere controller
 func LocalVMWare(config *vmware.Config) (Bootstrapper, error) {
-	vmware, err := vmware.NewVMware(config)
+	client, err := vmware.NewVMware(config)
 	if err != nil {
 		return nil, err
 	}
-	return newBootstrapper(vmware)
+	return newBootstrapper(client)
 }
 
 // GCP creates a bootstrapper to query GCP API.
 func GCP(config *gcp.Config) (Bootstrapper, error) {
-	gcp, err := gcp.NewGCP(config)
+	client, err := gcp.NewGCP(config)
 	if err != nil {
 		return nil, err
 	}
-	return newBootstrapper(gcp)
+	return newBootstrapper(client)
 }
 
 func newBootstrapper(members cloud.Cloud) (Bootstrapper, error) {
