@@ -21,17 +21,22 @@ etcd2 container that bootstraps in the cloud. Run it the same as the etcd contai
 You can pass in any flag that etcd takes normally.
 
 
-Alternatively, cloud-etcd may be used to generate a startup script for etcd only, which may then be used with this image, or v3+ images.
+Alternatively, cloud-etcd may be used to generate a startup script for etcd only, which may then be used with this
+image, or v3+ images.
 
-    docker run -v OUTPUT_DIR:/bootstrap --entrypoint=/bootstrap.sh skycirrus/cloud-etcd-v2.3.8:1.2.0 -h # lists all the etcd-bootstrap options
+    docker run -v BOOTSTRAP_DIR:/bootstrap --entrypoint=/bootstrap.sh skycirrus/cloud-etcd-v2.3.8:1.2.0 -h # lists all the etcd-bootstrap options
 
-And then to run etcd v2:
+And then to run etcd v2 using this image:
 
-    docker run -v OUTPUT_DIR:/bootstrap --entrypoint=/etcd.sh skycirrus/cloud-etcd-v2.3.8:1.2.0 -h # lists all the etcd options
+    docker run -v BOOTSTRAP_DIR:/bootstrap --entrypoint=/bootstrap/etcd.sh skycirrus/cloud-etcd-v2.3.8:1.2.0 -h # lists all the etcd options
     
-Or for etcd v3+:
+Or for etcd v3+ using the coreos image:
 
-    docker run -v OUTPUT_DIR:/bootstrap --entrypoint=/bootstrap/etcd.sh quay.io/coreos/etcd:v3.2 -h # lists all the etcd options 
+    docker run -v BOOTSTRAP_DIR:/bootstrap --entrypoint=/bootstrap/etcd.sh quay.io/coreos/etcd:v3.2 -h # lists all the etcd options 
+
+The startup script is generated and placed into the volume mounted bootstrap directory. This must be mounted into the
+container which will run etcd, and the entrypoint must be changed to the generated script. The location of this
+bootstrap directory may be customised by using `-e BOOTSTRAP_DIR=[NEW LOCATION]`.
 
 ### AWS
 
