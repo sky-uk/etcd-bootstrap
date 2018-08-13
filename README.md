@@ -16,9 +16,22 @@ The cloud type used is determined by the `-cloud (aws|vmware|gcp)` command line 
 
 etcd2 container that bootstraps in the cloud. Run it the same as the etcd container:
 
-    docker run skycirrus/cloud-etcd-v2.3.8:1.1.0 -h # lists all the etcd options
+    docker run skycirrus/cloud-etcd-v2.3.8:1.2.0 -h # lists all the etcd options
 
 You can pass in any flag that etcd takes normally.
+
+
+Alternatively, cloud-etcd may be used to generate a startup script for etcd only, which may then be used with this image, or v3+ images.
+
+    docker run -v OUTPUT_DIR:/bootstrap --entrypoint=/bootstrap.sh skycirrus/cloud-etcd-v2.3.8:1.2.0 -h # lists all the etcd-bootstrap options
+
+And then to run etcd v2:
+
+    docker run -v OUTPUT_DIR:/bootstrap --entrypoint=/etcd.sh skycirrus/cloud-etcd-v2.3.8:1.2.0 -h # lists all the etcd options
+    
+Or for etcd v3+:
+
+    docker run -v OUTPUT_DIR:/bootstrap --entrypoint=/bootstrap/etcd.sh quay.io/coreos/etcd:v3.2 -h # lists all the etcd options 
 
 ### AWS
 
@@ -40,7 +53,7 @@ To pass flags to etcd-bootstrap, set the `ETCD_BOOTSTRAP_FLAGS` environment vari
 
 ## vmware-etcd container
 
-On top of the functionality provided by the aws-etcd container, the vmware-etcd container has support to read
+On top of the functionality provided by the cloud-etcd container, the vmware-etcd container has support to read
 credentials from a user specified file.
 
 To use this feature, set the `VMWARE_CREDENTIALS` environment variable with reference to the location of the file that
@@ -56,7 +69,7 @@ append the appropriate flags to `ETCD_BOOTSTRAP_FLAGS`.
 
     docker run -e VMWARE_CREDENTIALS='/etc/vmware-credentials' \
                -e ETCD_BOOTSTRAP_FLAGS='-cloud vmware ...' \
-               skycirrus/vmware-etcd-v2.3.8:1.1.0
+               skycirrus/vmware-etcd-v2.3.8:1.2.0
 
 ## Command usage
 

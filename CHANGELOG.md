@@ -1,3 +1,7 @@
+# v1.2.0
+
+* Split `start-etcd.sh` into `bootstrap.sh` and `etcd.sh`, to allow etcd-bootstrap to be used with coreos etcd v3+ images.
+
 # v1.1.1
 
 * Fix vmware docker image.
