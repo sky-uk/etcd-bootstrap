@@ -1,8 +1,6 @@
 #!/bin/sh -e
 
-if [ -z $BOOTSTRAP_DIR ] ; then
-    BOOTSTRAP_DIR=/bootstrap
-fi
+BOOTSTRAP_DIR=${BOOTSTRAP_DIR:="/bootstrap"}
 
 set -a
 source $BOOTSTRAP_DIR/etcd-bootstrap.conf

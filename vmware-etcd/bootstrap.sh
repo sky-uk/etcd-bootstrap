@@ -19,9 +19,7 @@ if [ -n "$VMWARE_CREDENTIALS" ]; then
     fi
 fi
 
-if [ -z $BOOTSTRAP_DIR ] ; then
-    BOOTSTRAP_DIR=/bootstrap
-fi
+BOOTSTRAP_DIR=${BOOTSTRAP_DIR:="/bootstrap"}
 
 /etcd-bootstrap -o $BOOTSTRAP_DIR/etcd-bootstrap.conf $@
 
