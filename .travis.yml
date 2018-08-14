@@ -13,14 +13,6 @@ services:
 script: make travis
 
 deploy:
-- provider: releases
-  api_key:
-    secure: jG4eHiUPz7tJreis/fJWDSyKbYoJPQ9nnke0EsHntZu74gC3NGBOuAd7WJtcdWpDZ/ln1SHzuSZkNdb/fUZehQzj62HCp85pQxkxVB4i+P3oGjV+6yJ/nSvzkP25Z/NQAupsAmkZOubXL5aqkp3LvS8Zh6Ed5I0iuAAGceDahBV3WbTwJ3rxvZkiOYaOVjRXztSmTEDicnmdz3aL9ApA0sp7Z7sR5m/8nu8vWpFyItBBtfq+NkDhHCCwLEhmXE0osBZSGdhZKR3z9lmFRqu8HVRTnTpktSqFMVtFWDmQfpwBzxNiuZtRF/kdUQ/bLzgXicOYHABDhWDfPWLNGvHocAIfVsNCv+9rojt1ZduBIR1nJo885B5OdBHvChz/MFuiGkXTXatoUvHPjZtl4p3WScc755Dg6IUdg+MknqZp1MgaeJmV2PGX9cjSot2uBwHS3cirnrE4TImaXIk1gU1GNPOLDL3XYY7tCjj/fXp+nPi0wmpxJUYeJrm/h4Ee9x4UVvtdGuMVX6Nb+UiOny2LheGxVyPNmLf6EuxQ5JAWFF+JyN/lcK1u43EYgUkzTSU22wtxRRzdYD3RikIaqvlO+7YXc9m3KC5JohDYuUbSwxnrc0sEX7KOwHTU6F2GRLfxOqnTUOavJm6SZ9x84wFvxQepq2dQ4PICS/tEvfmZbfI=
-  file: etcd-bootstrap
-  skip_cleanup: true
-  on:
-    repo: sky-uk/etcd-bootstrap
-    tags: true
 - provider: script
   script: make release
   on:
