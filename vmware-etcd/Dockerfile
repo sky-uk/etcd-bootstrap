@@ -14,6 +14,8 @@ RUN curl -OLv https://github.com/coreos/etcd/releases/download/$VERSION/etcd-$VE
     && rm -f *.tar.gz
 
 COPY etcd-bootstrap /
+COPY bootstrap.sh /
+COPY etcd.sh /
 COPY start-etcd.sh /
 
 ENTRYPOINT ["/start-etcd.sh"]
