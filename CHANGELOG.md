@@ -1,3 +1,7 @@
+# v1.2.1
+
+* Update alpine image to fix CVE-2019-5021
+
 # v1.2.0
 
 * Split `start-etcd.sh` into `bootstrap.sh` and `etcd.sh`, to allow etcd-bootstrap to be used with coreos etcd v3+ images.
