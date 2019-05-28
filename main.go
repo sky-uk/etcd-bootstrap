@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/sky-uk/etcd-bootstrap/lib"
+	bootstrap "github.com/sky-uk/etcd-bootstrap/lib"
 	"github.com/sky-uk/etcd-bootstrap/lib/gcp"
 	"github.com/sky-uk/etcd-bootstrap/lib/vmware"
 )
