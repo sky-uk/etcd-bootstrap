@@ -15,6 +15,8 @@ type Bootstrapper interface {
 	BootstrapEtcdFlags() (string, error)
 	// BootstrapDNS adds the etcd instances to the DNS provider for the given cloud.
 	BootstrapDNS(domainName string) error
+	// BootstrapLb adds the etcd instances to the Loadbalancer target list.
+	BootstrapLB() error
 }
 
 type bootstrapper struct {
@@ -26,13 +28,17 @@ func (b *bootstrapper) BootstrapDNS(name string) error {
 	return b.cloud.UpdateDNS(name)
 }
 
-// LocalASG creates a bootstrapper wired to the local ASG.
-func LocalASG(zoneID string) (Bootstrapper, error) {
-	asg, err := aws.NewAws(zoneID)
+func (b *bootstrapper) BootstrapLB() error {
+	return b.cloud.UpdateLB()
+}
+
+// LocalAWS creates a bootstrapper to query AWS API.
+func LocalAWS(config *aws.Config) (Bootstrapper, error) {
+	aws, err := aws.NewAws(config)
 	if err != nil {
 		return nil, err
 	}
-	return newBootstrapper(asg)
+	return newBootstrapper(aws)
 }
 
 // LocalVMWare creates a bootstrapper wired to the VMWare vSphere controller

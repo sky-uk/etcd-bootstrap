@@ -25,6 +25,10 @@ func (a *testASG) UpdateDNS(name string) error {
 	return nil
 }
 
+func (a *testASG) UpdateLB() error {
+	return nil
+}
+
 type testCluster struct {
 	members       []etcdcluster.Member
 	removedMember []string

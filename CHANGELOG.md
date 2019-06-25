@@ -1,3 +1,15 @@
+# v1.3.0
+
+If you are using the DNS record created by etcd bootstrap this is a breaking change to the command-line arguments
+required by the application:
+
+* Add `-registration-type` flag (default: `none`) which sets how etcd bootstrap will register the cluster. Options are:
+    - none: don't attempt to register the cluster externally, this will simply create the etcd config for the cluster
+    - dns: after generating the cluster config, create a DNS record containing multiple A records if supported by the cloud
+    provider (requires `-route53-zone-id` and `-domain-name` to be set)
+    - lb: after generating the cluster config, add the etcd instances to a loadbalancer target group if supported by the
+    cloud provider (requires `-aws-lb-target-group` to be set)
+
 # v1.2.1
 
 * Update alpine image to fix CVE-2019-5021.

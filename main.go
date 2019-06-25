@@ -9,39 +9,58 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	bootstrap "github.com/sky-uk/etcd-bootstrap/lib"
+	"github.com/sky-uk/etcd-bootstrap/lib/aws"
 	"github.com/sky-uk/etcd-bootstrap/lib/gcp"
 	"github.com/sky-uk/etcd-bootstrap/lib/vmware"
 )
 
 var (
-	cloudProvider  string
-	vmwareUsername string
-	vmwarePassword string
-	vmwareHost     string
-	vmwarePort     string
-	vmwareInsecure bool
-	vmwareAttempts uint
-	vmwareVMName   string
-	vmwareEnv      string
-	vmwareRole     string
-	outputFilename string
-	zoneID         string
-	domainName     string
-	gcpProjectID   string
-	gcpEnv         string
-	gcpRole        string
+	cloudProvider    string
+	registrationType string
+	r53ZoneID        string
+	domainName       string
+	outputFilename   string
+	awsLBTargetGroup string
+	vmwareUsername   string
+	vmwarePassword   string
+	vmwareHost       string
+	vmwarePort       string
+	vmwareInsecure   bool
+	vmwareAttempts   uint
+	vmwareVMName     string
+	vmwareEnv        string
+	vmwareRole       string
+	gcpProjectID     string
+	gcpEnv           string
+	gcpRole          string
 )
 
 const (
-	defaultVmwarePort     = "443"
-	defaultVmwareInsecure = true
-	defaultVmwareAttempts = 3
-	defaultOutputFilename = "/var/run/etcd-bootstrap.conf"
+	defaultRegistrationType = "none"
+	defaultOutputFilename   = "/var/run/etcd-bootstrap.conf"
+	defaultVmwarePort       = "443"
+	defaultVmwareInsecure   = true
+	defaultVmwareAttempts   = 3
 )
 
 func init() {
+	// default flags
 	flag.StringVar(&cloudProvider, "cloud", "",
 		"cloud provider to use.  Required, and must be one of 'aws' or 'vmware'")
+	flag.StringVar(&registrationType, "registration-type", defaultRegistrationType, "set etcd "+
+		"registration type (options: none, dns, lb)")
+	flag.StringVar(&r53ZoneID, "route53-zone-id", "",
+		"route53 zone ID to update with the IP addresses of the etcd auto scaling group")
+	flag.StringVar(&domainName, "domain-name", "",
+		"domain name to update inside the DNS provider, eg. 'etcd' (only required for -registration-type=dns)")
+	flag.StringVar(&outputFilename, "o", defaultOutputFilename,
+		"location to write environment variables for etcd to use")
+
+	// aws flags
+	flag.StringVar(&awsLBTargetGroup, "aws-lb-target-group", "",
+		"aws loadbalancer target group name to update with the etcd instances")
+
+	// vmware flags
 	flag.StringVar(&vmwareUsername, "vmware-username", "",
 		"username for vSphere API")
 	flag.StringVar(&vmwarePassword, "vmware-password", "",
@@ -60,13 +79,8 @@ func init() {
 		"value of the 'tags_environment' extra configuration option in vSphere to filter nodes by")
 	flag.StringVar(&vmwareRole, "vmware-role", "",
 		"value of the 'tags_role' extra configuration option in vSphere to filter nodes by")
-	flag.StringVar(&outputFilename, "o", defaultOutputFilename,
-		"location to write environment variables for etcd to use")
-	flag.StringVar(&zoneID, "route53-zone-id", "",
-		"route53 zone ID to update with the IP addresses of the etcd auto scaling group")
-	flag.StringVar(&domainName, "domain-name", "",
-		"domain name to update inside the DNS provider, eg. 'etcd'")
 
+	// gcp flags
 	flag.StringVar(&gcpProjectID, "gcp-project-id", "",
 		"value of the GCP 'project id' to query")
 	flag.StringVar(&gcpEnv, "gcp-environment", "",
@@ -96,11 +110,22 @@ func main() {
 		log.Fatalf("Unable to write to %s: %v", outputFilename, err)
 	}
 
-	if domainName != "" {
+	switch registrationType {
+	case "dns":
 		log.Infof("Adding etcd IPs to %q in DNS", domainName)
+		if domainName == "" {
+			log.Fatalf("-domain-name must be set when using dns registration type")
+		}
 		if err := bootstrapper.BootstrapDNS(domainName); err != nil {
 			log.Fatalf("Unable to bootstrap DNS: %v", err)
 		}
+	case "lb":
+		log.Infof("Registering etcd targets with loadbalancer")
+		if err := bootstrapper.BootstrapLB(); err != nil {
+			log.Fatalf("Unable to bootstrap LB: %v", err)
+		}
+	case "none":
+		log.Infof("Skipping etcd bootstrap registration")
 	}
 }
 
@@ -123,7 +148,11 @@ func createBootstrapper() (bootstrap.Bootstrapper, error) {
 
 		bootstrapper, err = bootstrap.LocalVMWare(config)
 	case "aws":
-		bootstrapper, err = bootstrap.LocalASG(zoneID)
+		config := &aws.Config{
+			R53ZoneID:         r53ZoneID,
+			LBTargetGroupName: awsLBTargetGroup,
+		}
+		bootstrapper, err = bootstrap.LocalAWS(config)
 	case "gcp":
 		config := &gcp.Config{
 			ProjectID:   gcpProjectID,

@@ -45,7 +45,7 @@ etcd cluster, based on the ASG the local instance is on.
 
 To pass flags to etcd-bootstrap, set the `ETCD_BOOTSTRAP_FLAGS` environment variable.
 
-    docker run -e ETCD_BOOTSTRAP_FLAGS='-cloud aws -route53-zone-id MY_ZONE_ID -domain-name etcd' skycirrus/cloud-etcd-v2.3.8:1.1.0
+    docker run -e ETCD_BOOTSTRAP_FLAGS='-cloud aws -registration-type dns -route53-zone-id MY_ZONE_ID -domain-name etcd' skycirrus/cloud-etcd-v2.3.8:1.1.0
 
 ### GCP
 
@@ -96,7 +96,7 @@ This will:
 
 Optionally etcd-bootstrap can also register all the IPs in the autoscaling group with a domain name.
 
-    ./etcd-bootstrap -o /var/run/bootstrap.conf -cloud aws -route53-zone-id MYZONEID -domain-name etcd
+    ./etcd-bootstrap -o /var/run/bootstrap.conf -cloud aws -registration-type dns -route53-zone-id MYZONEID -domain-name etcd
 
 If zone `MYZONEID` has domain name `example.com`, this will update the domain name `etcd.example.com` with all
 of the IPs. This lets clients use round robin DNS for connecting to the cluster.
@@ -109,9 +109,46 @@ of the IPs. This lets clients use round robin DNS for connecting to the cluster.
 
 AWS nodes must be created in an ASG of which the node on which the container runs must be a part.
 
+### Registration types
+
+AWS supports both `dns` and `lb` registration types.
+
+##### dns
+
+If running etcd bootstrap with `-registration-type=dns` this will create a route53 record containing all etcd instance
+ip addresses as A records. It will create it in the zone supplied using `-route53-zone-id` and the domain supplied by 
+`-domain-name` (both flags are required when using this registration type).
+
+##### lb
+
+If running etcd bootsrap with `-registration-type=lb` this will attempt to register all etcd instances with an AWS
+loadbalancer target group with the name supplied by `-aws-lb-target-group` (flag is required when using this
+registration type).
+
 #### IAM role
 
-Instances must have the following IAM policy rules:
+Instances must have one of the following IAM policy rules:
+
+##### Registration type: none 
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances",
+        "autoscaling:DescribeAutoScaling*",
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+
+```
+
+##### Registration type: dns 
 
 ```json
 {
@@ -124,6 +161,27 @@ Instances must have the following IAM policy rules:
         "autoscaling:DescribeAutoScaling*",
         "route53:ChangeResourceRecordSets",
         "route53:GetHostedZone"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+
+```
+
+##### Registration type: lb 
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances",
+        "autoscaling:DescribeAutoScaling*",
+        "elasticloadbalancing:RegisterTargets",
+        "elasticloadbalancing:DescribeTargetGroups"
       ],
       "Resource": "*"
     }

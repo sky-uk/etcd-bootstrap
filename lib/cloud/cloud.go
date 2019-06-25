@@ -8,6 +8,8 @@ type Cloud interface {
 	GetLocalInstance() Instance
 	// UpdateDNS updates the DNS provider for this cloud to add records for every member of the etcd cluster.
 	UpdateDNS(name string) error
+	// UpdateLB updates the Loadbalancer provider target list with every member of the etcd cluster.
+	UpdateLB() error
 }
 
 // Instance represents an instance inside of the auto scaling group.
