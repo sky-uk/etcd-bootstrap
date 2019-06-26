@@ -8,65 +8,40 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
+	"github.com/sky-uk/etcd-bootstrap/provider"
 )
 
-// Config is the configuration required to talk to the AWS API.
-type Config struct {
-	R53ZoneID         string
-	LBTargetGroupName string
+// awsASG interface to abstract away from AWS commands
+type awsASG interface {
+	DescribeAutoScalingInstances(a *autoscaling.DescribeAutoScalingInstancesInput) (*autoscaling.DescribeAutoScalingInstancesOutput, error)
+	DescribeAutoScalingGroups(a *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error)
+}
+
+// awsEC2 interface to abstract away from AWS commands
+type awsEC2 interface {
+	DescribeInstances(e *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error)
 }
 
 type awsMembers struct {
-	identityDocument  ec2metadata.EC2InstanceIdentityDocument
-	instances         []cloud.Instance
-	r53               R53
-	r53ZoneID         string
-	lbTargetGroup     LBTargetGroup
-	lbTargetGroupName string
+	identityDocument ec2metadata.EC2InstanceIdentityDocument
+	instances        []provider.Instance
 }
 
 // GetInstances will return the aws etcd instances
-func (a *awsMembers) GetInstances() []cloud.Instance {
+func (a *awsMembers) GetInstances() []provider.Instance {
 	return a.instances
 }
 
 // GetLocalInstance will get the aws instance etcd bootstrap is running on
-func (a *awsMembers) GetLocalInstance() cloud.Instance {
-	return cloud.Instance{
+func (a *awsMembers) GetLocalInstance() provider.Instance {
+	return provider.Instance{
 		InstanceID: a.identityDocument.InstanceID,
 		PrivateIP:  a.identityDocument.PrivateIP,
 	}
 }
 
-// UpdateDNS will update the specified route53 zone with the configured domain if the dns registration type is enabled
-func (a *awsMembers) UpdateDNS(name string) error {
-	var ips []string
-	for _, instance := range a.GetInstances() {
-		ips = append(ips, instance.PrivateIP)
-	}
-
-	if a.r53ZoneID == "" {
-		return fmt.Errorf("unable to register DNS, route53 zone id not set")
-	}
-	return a.r53.UpdateARecords(a.r53ZoneID, name, ips)
-}
-
-// UpdateLB will update the specified loadbalancer target group with the aws etcd instances if the lb registration type
-// is enabled
-func (a *awsMembers) UpdateLB() error {
-	var instanceIDs []string
-	for _, instance := range a.GetInstances() {
-		instanceIDs = append(instanceIDs, instance.InstanceID)
-	}
-	if a.lbTargetGroupName == "" {
-		return fmt.Errorf("unable to register loadbalancer, loadbalancer target group name not set")
-	}
-	return a.lbTargetGroup.UpdateTargetGroup(a.lbTargetGroupName, instanceIDs)
-}
-
-// NewAws returns the Members this local instance belongs to.
-func NewAws(cfg *Config) (cloud.Cloud, error) {
+// NewAWS returns the Members this local instance belongs to.
+func NewAWS() (provider.Provider, error) {
 	awsSession, err := session.NewSession()
 	if err != nil {
 		return nil, err
@@ -79,35 +54,28 @@ func NewAws(cfg *Config) (cloud.Cloud, error) {
 	}
 
 	config := &aws.Config{Region: aws.String(identityDoc.Region)}
-	awsASG := autoscaling.New(awsSession, config)
-	awsEC2 := ec2.New(awsSession, config)
+	awsASGClient := autoscaling.New(awsSession, config)
+	awsEC2Client := ec2.New(awsSession, config)
 
-	instances, err := queryInstances(identityDoc, awsASG, awsEC2)
-	if err != nil {
-		return nil, fmt.Errorf("unable to query instances: %v", err)
-	}
-
-	dns, err := newR53()
-	lb, err := newLBTargetGroup()
-
-	return &awsMembers{
-		identityDocument:  identityDoc,
-		instances:         instances,
-		r53:               dns,
-		r53ZoneID:         cfg.R53ZoneID,
-		lbTargetGroup:     lb,
-		lbTargetGroupName: cfg.LBTargetGroupName,
-	}, nil
-}
-
-func queryInstances(identity ec2metadata.EC2InstanceIdentityDocument, awsASG *autoscaling.AutoScaling, awsEC2 *ec2.EC2) ([]cloud.Instance, error) {
-	instanceID := identity.InstanceID
-	asgName, err := getASGName(instanceID, awsASG)
+	instances, err := queryInstances(identityDoc, awsASGClient, awsEC2Client)
 	if err != nil {
 		return nil, err
 	}
 
-	instanceIDs, err := getASGInstanceIDs(asgName, awsASG)
+	return &awsMembers{
+		identityDocument: identityDoc,
+		instances:        instances,
+	}, nil
+}
+
+func queryInstances(identity ec2metadata.EC2InstanceIdentityDocument, awsASGClient awsASG, awsEC2Client awsEC2) ([]provider.Instance, error) {
+	instanceID := identity.InstanceID
+	asgName, err := getASGName(instanceID, awsASGClient)
+	if err != nil {
+		return nil, err
+	}
+
+	instanceIDs, err := getASGInstanceIDs(asgName, awsASGClient)
 	if err != nil {
 		return nil, err
 	}
@@ -123,15 +91,15 @@ func queryInstances(identity ec2metadata.EC2InstanceIdentityDocument, awsASG *au
 		},
 	}
 
-	out, err := awsEC2.DescribeInstances(req)
+	out, err := awsEC2Client.DescribeInstances(req)
 	if err != nil {
 		return nil, err
 	}
 
-	var instances []cloud.Instance
+	var instances []provider.Instance
 	for _, reservation := range out.Reservations {
 		for _, instance := range reservation.Instances {
-			instances = append(instances, cloud.Instance{
+			instances = append(instances, provider.Instance{
 				InstanceID: *instance.InstanceId,
 				PrivateIP:  *instance.PrivateIpAddress,
 			})
@@ -141,7 +109,7 @@ func queryInstances(identity ec2metadata.EC2InstanceIdentityDocument, awsASG *au
 	return instances, nil
 }
 
-func getASGName(instanceID string, a *autoscaling.AutoScaling) (string, error) {
+func getASGName(instanceID string, a awsASG) (string, error) {
 	req := &autoscaling.DescribeAutoScalingInstancesInput{
 		InstanceIds: aws.StringSlice([]string{instanceID}),
 	}
@@ -155,7 +123,7 @@ func getASGName(instanceID string, a *autoscaling.AutoScaling) (string, error) {
 	return *out.AutoScalingInstances[0].AutoScalingGroupName, nil
 }
 
-func getASGInstanceIDs(asgName string, awsASG *autoscaling.AutoScaling) ([]string, error) {
+func getASGInstanceIDs(asgName string, awsASG awsASG) ([]string, error) {
 	req := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: aws.StringSlice([]string{asgName}),
 	}
@@ -165,7 +133,7 @@ func getASGInstanceIDs(asgName string, awsASG *autoscaling.AutoScaling) ([]strin
 		return nil, err
 	}
 	if len(out.AutoScalingGroups) != 1 {
-		return nil, fmt.Errorf("Expected a single autoscaling group for %s, but found %d", asgName,
+		return nil, fmt.Errorf("expected a single autoscaling group for %s, but found %d", asgName,
 			len(out.AutoScalingGroups))
 	}
 

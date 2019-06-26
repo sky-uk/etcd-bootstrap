@@ -54,7 +54,7 @@ func init() {
 func aws(cmd *cobra.Command, args []string) {
 	registrationProvider := initialiseAWSRegistrationProvider()
 
-	awsProvider, err := aws_provider.NewAws()
+	awsProvider, err := aws_provider.NewAWS()
 	if err != nil {
 		log.Fatalf("Failed to create AWS provider: %v", err)
 	}

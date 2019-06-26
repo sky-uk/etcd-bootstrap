@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/compute/metadata"
-	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
+	"github.com/sky-uk/etcd-bootstrap/provider"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/compute/v1"
 )
@@ -22,34 +22,22 @@ type Config struct {
 }
 
 type gcpMembers struct {
-	instances []cloud.Instance
-	instance  cloud.Instance
+	instances []provider.Instance
+	instance  provider.Instance
 }
 
 // GetInstances will return the gcp etcd instances
-func (m *gcpMembers) GetInstances() []cloud.Instance {
+func (m *gcpMembers) GetInstances() []provider.Instance {
 	return m.instances
 }
 
 // GetLocalInstance will get the gcp instance etcd bootstrap is running on
-func (m *gcpMembers) GetLocalInstance() cloud.Instance {
+func (m *gcpMembers) GetLocalInstance() provider.Instance {
 	return m.instance
 }
 
-// UpdateDNS is not supported as an etcd bootstrap registration type for gcp
-func (m *gcpMembers) UpdateDNS(name string) error {
-	// No DNS provider is enabled for GCP
-	return nil
-}
-
-// UpdateLB is not supported as an etcd bootstrap registration type for gcp
-func (m *gcpMembers) UpdateLB() error {
-	// No LB provider is enabled for GCP
-	return nil
-}
-
 // NewGCP returns the Members matching the cfg.
-func NewGCP(cfg *Config) (cloud.Cloud, error) {
+func NewGCP(cfg *Config) (provider.Provider, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	defer cancel()
@@ -77,7 +65,7 @@ func NewGCP(cfg *Config) (cloud.Cloud, error) {
 	return members, nil
 }
 
-func findThisInstance() (*cloud.Instance, error) {
+func findThisInstance() (*provider.Instance, error) {
 	ip, err := metadata.InternalIP()
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve local IP metadata: %v", err)
@@ -86,7 +74,7 @@ func findThisInstance() (*cloud.Instance, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve local Name metadata: %v", err)
 	}
-	local := &cloud.Instance{
+	local := &provider.Instance{
 		InstanceID: name,
 		PrivateIP:  ip,
 	}
@@ -105,15 +93,15 @@ func newClient(ctx context.Context, cfg *Config) (*compute.Service, error) {
 	return computeService, err
 }
 
-func findAllInstances(client *compute.Service, cfg *Config) ([]cloud.Instance, error) {
+func findAllInstances(client *compute.Service, cfg *Config) ([]provider.Instance, error) {
 	zones, err := client.Zones.List(cfg.ProjectID).Do()
 	if err != nil {
 		return nil, fmt.Errorf("unable to list zones for project %q: %v", cfg.ProjectID, err)
 	}
 
-	var instances []cloud.Instance
+	var instances []provider.Instance
 	for _, zone := range zones.Items {
-		// https://cloud.google.com/sdk/gcloud/reference/topic/filters
+		// https://provider.google.com/sdk/gcloud/reference/topic/filters
 		filters := []string{
 			fmt.Sprintf("labels.environment=%s", cfg.Environment),
 			fmt.Sprintf("labels.role=%s", cfg.Role),
@@ -128,9 +116,9 @@ func findAllInstances(client *compute.Service, cfg *Config) ([]cloud.Instance, e
 		for _, instance := range result.Items {
 			// Taking the first available network interface in case there are multiple.
 			// The networkInterface.NetworkIP will only contain private IPs:
-			// https://cloud.google.com/compute/docs/reference/rest/v1/instances/list
+			// https://provider.google.com/compute/docs/reference/rest/v1/instances/list
 			if len(instance.NetworkInterfaces) > 0 {
-				instances = append(instances, cloud.Instance{
+				instances = append(instances, provider.Instance{
 					InstanceID: instance.Name,
 					PrivateIP:  instance.NetworkInterfaces[0].NetworkIP,
 				})

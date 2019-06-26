@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
+	"github.com/sky-uk/etcd-bootstrap/provider"
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25"
@@ -25,7 +25,7 @@ type Config struct {
 	// vCenter Hostname or IP.
 	VCenterHost string
 	// vCenter port.
-	VCenterPort string
+	VCenterPort uint
 	// True if vCenter uses self-signed cert.
 	InsecureFlag bool
 	// Soap round tripper count (retries = RoundTripper - 1)
@@ -39,34 +39,22 @@ type Config struct {
 }
 
 type vmwareMembers struct {
-	instances []cloud.Instance
-	instance  cloud.Instance
+	instances []provider.Instance
+	instance  provider.Instance
 }
 
 // GetInstances will return the vmware etcd instances
-func (m vmwareMembers) GetInstances() []cloud.Instance {
+func (m vmwareMembers) GetInstances() []provider.Instance {
 	return m.instances
 }
 
 // GetLocalInstance will get the vmware instance etcd bootstrap is running on
-func (m vmwareMembers) GetLocalInstance() cloud.Instance {
+func (m vmwareMembers) GetLocalInstance() provider.Instance {
 	return m.instance
 }
 
-// UpdateDNS is not supported as an etcd bootstrap registration type for vmware
-func (m vmwareMembers) UpdateDNS(name string) error {
-	// No DNS provider is enabled for VMWare
-	return nil
-}
-
-// UpdateLB is not supported as an etcd bootstrap registration type for vmware
-func (m vmwareMembers) UpdateLB() error {
-	// No LB provider is enabled for VMWare
-	return nil
-}
-
 // NewVMware returns the Members this local instance belongs to.
-func NewVMware(cfg *Config) (cloud.Cloud, error) {
+func NewVMware(cfg *Config) (provider.Provider, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	defer cancel()
@@ -95,7 +83,7 @@ func NewVMware(cfg *Config) (cloud.Cloud, error) {
 	return members, nil
 }
 
-func findAllInstances(ctx context.Context, c *govmomi.Client, env, role string) ([]cloud.Instance, error) {
+func findAllInstances(ctx context.Context, c *govmomi.Client, env, role string) ([]provider.Instance, error) {
 	m := view.NewManager(c.Client)
 
 	v, err := m.CreateContainerView(ctx, c.ServiceContent.RootFolder, []string{"VirtualMachine"}, true)
@@ -114,7 +102,7 @@ func findAllInstances(ctx context.Context, c *govmomi.Client, env, role string) 
 		return nil, err
 	}
 
-	var instances []cloud.Instance
+	var instances []provider.Instance
 
 	var matched []mo.VirtualMachine
 	for _, vm := range vms {
@@ -125,7 +113,7 @@ func findAllInstances(ctx context.Context, c *govmomi.Client, env, role string) 
 
 	for _, vm := range matched {
 		if vm.Summary.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
-			instances = append(instances, cloud.Instance{
+			instances = append(instances, provider.Instance{
 				InstanceID: vm.Config.Name,
 				PrivateIP:  vm.Summary.Guest.IpAddress,
 			})
@@ -146,10 +134,10 @@ func matchesTag(vm mo.VirtualMachine, tag string, match string) bool {
 	return false
 }
 
-func findThisInstance(cfg *Config, instances []cloud.Instance) (*cloud.Instance, error) {
+func findThisInstance(cfg *Config, instances []provider.Instance) (*provider.Instance, error) {
 	for _, instance := range instances {
 		if strings.Contains(cfg.VMName, instance.InstanceID) {
-			return &cloud.Instance{
+			return &provider.Instance{
 				InstanceID: instance.InstanceID,
 				PrivateIP:  instance.PrivateIP,
 			}, nil
@@ -162,7 +150,7 @@ func findThisInstance(cfg *Config, instances []cloud.Instance) (*cloud.Instance,
 func newClient(ctx context.Context, cfg *Config) (*govmomi.Client, error) {
 	flag.Parse()
 
-	u, err := url.Parse(fmt.Sprintf("https://%s:%s/sdk", cfg.VCenterHost, cfg.VCenterPort))
+	u, err := url.Parse(fmt.Sprintf("https://%s:%v/sdk", cfg.VCenterHost, cfg.VCenterPort))
 	if err != nil {
 		return nil, err
 	}

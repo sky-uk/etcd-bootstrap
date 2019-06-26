@@ -7,22 +7,49 @@ import (
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elbv2"
+	"github.com/sky-uk/etcd-bootstrap/provider"
 )
 
-// LBTargetGroup abstracts interactions with AWS elbv2.
-type LBTargetGroup interface {
-	UpdateTargetGroup(targetGroupName string, instances []string) error
+type LBTargetGroupRegistrationProviderConfig struct {
+	TargetGroupName string
 }
 
-type lbTargetGroup struct {
-	elb *elbv2.ELBV2
+// elb interface to abstract away from AWS commands
+type elb interface {
+	DescribeTargetGroups(e *elbv2.DescribeTargetGroupsInput) (*elbv2.DescribeTargetGroupsOutput, error)
+	RegisterTargets(e *elbv2.RegisterTargetsInput) (*elbv2.RegisterTargetsOutput, error)
 }
 
-// UpdateTargetGroup will update the aws lb target group with the discovered etcd instances
-func (l *lbTargetGroup) UpdateTargetGroup(targetGroupName string, targetIDs []string) error {
+type LBTargetGroupRegistrationProvider struct {
+	targetGroupName string
+	elb             elb
+}
+
+func NewLBTargetGroupRegistrationProvider(c *LBTargetGroupRegistrationProviderConfig) (provider.RegistrationProvider, error) {
+	awsSession, err := session.NewSession()
+	if err != nil {
+		return nil, err
+	}
+
+	meta := ec2metadata.New(awsSession)
+	identityDoc, err := meta.GetInstanceIdentityDocument()
+	if err != nil {
+		return nil, err
+	}
+	config := &aws.Config{Region: aws.String(identityDoc.Region)}
+	elbClient := elbv2.New(awsSession, config)
+
+	return LBTargetGroupRegistrationProvider{
+		targetGroupName: c.TargetGroupName,
+		elb:             elbClient,
+	}, nil
+}
+
+// Update will update the aws lb target group with the discovered etcd instances
+func (l LBTargetGroupRegistrationProvider) Update(instances []provider.Instance) error {
 	targetGroups, err := l.elb.DescribeTargetGroups(&elbv2.DescribeTargetGroupsInput{
 		Names: []*string{
-			aws.String(targetGroupName),
+			aws.String(l.targetGroupName),
 		},
 	})
 	if err != nil {
@@ -35,9 +62,9 @@ func (l *lbTargetGroup) UpdateTargetGroup(targetGroupName string, targetIDs []st
 	}
 
 	var targets []*elbv2.TargetDescription
-	for _, targetID := range targetIDs {
+	for _, instance := range instances {
 		targets = append(targets, &elbv2.TargetDescription{
-			Id: aws.String(targetID),
+			Id: aws.String(instance.InstanceID),
 		})
 	}
 
@@ -61,21 +88,4 @@ func getTargetGroupARN(targetGroups *elbv2.DescribeTargetGroupsOutput) (*string,
 	}
 
 	return targetGroups.TargetGroups[0].TargetGroupArn, nil
-}
-
-func newLBTargetGroup() (LBTargetGroup, error) {
-	awsSession, err := session.NewSession()
-	if err != nil {
-		return nil, err
-	}
-
-	meta := ec2metadata.New(awsSession)
-	identityDoc, err := meta.GetInstanceIdentityDocument()
-	if err != nil {
-		return nil, err
-	}
-	config := &aws.Config{Region: aws.String(identityDoc.Region)}
-
-	awsELBv2 := elbv2.New(awsSession, config)
-	return &lbTargetGroup{elb: awsELBv2}, nil
 }
