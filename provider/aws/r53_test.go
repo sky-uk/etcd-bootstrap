@@ -15,15 +15,6 @@ const (
 	hostedZoneID      = "test-hosted-zone-id"
 	hostedZoneName    = "test.hosted.zone."
 	hostname          = "my-test-etcd-cluster"
-	r53TestPrivateIP  = "127.0.0.1"
-)
-
-var (
-	r53Instances = []provider.Instance{
-		{
-			PrivateIP:  r53TestPrivateIP,
-		},
-	}
 )
 
 func TestRoute53RegistrationProvider(t *testing.T) {
@@ -63,6 +54,14 @@ var _ = Describe("Route53 Registration Provider", func() {
 	var registrationProvider Route53RegistrationProvider
 
 	BeforeEach(func() {
+		// generate instance arrays based on the test data
+		var route53Instances []*route53.ResourceRecord
+		for _, testInstance := range testInstances {
+			route53Instances = append(route53Instances, &route53.ResourceRecord{
+				Value: aws.String(testInstance.PrivateIP),
+			})
+		}
+		// create dummy client responses
 		r53Client = testR53Client{
 			mockGetHostedZone: mockGetHostedZone{
 				expectedInput: &route53.GetHostedZoneInput{
@@ -85,11 +84,7 @@ var _ = Describe("Route53 Registration Provider", func() {
 									Name: aws.String(fmt.Sprintf("%v.%v", hostname, hostedZoneName)),
 									Type: aws.String(route53.RRTypeA),
 									TTL:  aws.Int64(300),
-									ResourceRecords: []*route53.ResourceRecord{
-										{
-											Value: aws.String(r53TestPrivateIP),
-										},
-									},
+									ResourceRecords: route53Instances,
 								},
 							},
 						},
@@ -107,7 +102,7 @@ var _ = Describe("Route53 Registration Provider", func() {
 
 	Context("Update()", func() {
 		It("passes when DescribeTargetGroups and RegisterTargets return expected values with instances", func() {
-			Expect(registrationProvider.Update(r53Instances)).To(BeNil())
+			Expect(registrationProvider.Update(testInstances)).To(BeNil())
 		})
 
 		It("passes when GetHostedZone and ChangeResourceRecordSets return expected values with no instances", func() {
@@ -117,7 +112,6 @@ var _ = Describe("Route53 Registration Provider", func() {
 					ResourceRecordSet: &route53.ResourceRecordSet{
 						Name: aws.String(fmt.Sprintf("%v.%v", hostname, hostedZoneName)),
 						Type: aws.String(route53.RRTypeA),
-						// Completely arbitrary amount that is not too long or too short.
 						TTL: aws.Int64(300),
 					},
 				},
@@ -128,13 +122,13 @@ var _ = Describe("Route53 Registration Provider", func() {
 		It("fails when GetHostedZone returns an error", func() {
 			r53Client.mockGetHostedZone.err = fmt.Errorf("failed to get hosted zones")
 			registrationProvider.r53 = r53Client
-			Expect(registrationProvider.Update(r53Instances))
+			Expect(registrationProvider.Update(testInstances))
 		})
 
 		It("fails when ChangeResourceRecordSets returns an error", func() {
 			r53Client.mockChangeResourceRecordSets.err = fmt.Errorf("failed to get change resource record set")
 			registrationProvider.r53 = r53Client
-			Expect(registrationProvider.Update(r53Instances))
+			Expect(registrationProvider.Update(testInstances))
 		})
 	})
 })

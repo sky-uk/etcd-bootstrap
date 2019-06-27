@@ -22,14 +22,21 @@ const (
 	localPrivateIP       = "127.0.0.1"
 	localInstanceID      = "test-local-instance-id"
 	autoscalingGroupName = "test-autoscaling-group"
-	autoscalingGroupID   = "test-autoscaling-group-id"
 )
 
 var (
 	testInstances = []provider.Instance{
 		{
-			InstanceID: "test-instance-id",
+			InstanceID: "test-instance-id-1",
 			PrivateIP:  "192.168.0.1",
+		},
+		{
+			InstanceID: "test-instance-id-2",
+			PrivateIP:  "192.168.0.2",
+		},
+		{
+			InstanceID: "test-instance-id-3",
+			PrivateIP:  "192.168.0.3",
 		},
 	}
 )
@@ -128,7 +135,7 @@ var _ = Describe("AWS Provider", func() {
 					PrivateIpAddress: aws.String(testInstance.PrivateIP),
 				})
 			}
-			// create dummy passing client responses
+			// create dummy client responses
 			awsASGClient = testAWSASGClient{
 				mockDescribeAutoScalingInstances: mockDescribeAutoScalingInstances{
 					expectedInput: &autoscaling.DescribeAutoScalingInstancesInput{
