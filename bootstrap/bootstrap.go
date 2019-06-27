@@ -12,9 +12,11 @@ import (
 
 // Bootstrapper bootstraps etcd.
 type Bootstrapper interface {
-	// GenerateEtcdFlags creates a file with etcd flags based on the cloud status.
+	// GenerateEtcdFlags returns a string containing the generated etcd flags.
+	GenerateEtcdFlags() (string, error)
+	// GenerateEtcdFlagsFile runs GenerateEtcdFlags and writes the output to a file.
 	// It's intended to be sourced in startup scripts.
-	GenerateEtcdFlags(outputFilename string) error
+	GenerateEtcdFlagsFile(outputFilename string) error
 }
 
 type bootstrapper struct {
@@ -40,31 +42,41 @@ func New(cloudProvider provider.Provider) (Bootstrapper, error) {
 	}, err
 }
 
-func (b *bootstrapper) GenerateEtcdFlags(outputFilename string) error {
+func (b *bootstrapper) GenerateEtcdFlags() (string, error) {
 	log.Infof("Generating etcd cluster flags")
 
+	var etcdFlags string
 	if clusterDoesNotExist, err := b.clusterDoesNotExist(); err != nil {
-		return err
+		return etcdFlags, err
 	} else if clusterDoesNotExist {
 		log.Info("No cluster found - treating as an initial node in the new cluster")
-		return writeToFile(outputFilename, b.bootstrapNewCluster())
+		return b.bootstrapNewCluster(), nil
 	}
 
 	if nodeExistsInCluster, err := b.nodeExistsInCluster(); err != nil {
-		return err
+		return etcdFlags, err
 	} else if nodeExistsInCluster {
 		// We treat it as a new cluster in case the cluster hasn't fully bootstrapped yet.
 		// etcd will ignore the INITIAL_* flags otherwise, so this should be safe.
 		log.Info("Node peer URL already exists - treating as an existing node in a new cluster")
-		return writeToFile(outputFilename, b.bootstrapNewCluster())
+		return b.bootstrapNewCluster(), nil
 	}
 
 	log.Info("Node does not exist yet in cluster - joining as a new node")
-	data, err := b.bootstrapNewNode()
+	etcdFlags, err := b.bootstrapNewNode()
+	if err != nil {
+		return etcdFlags, err
+	}
+	return etcdFlags, nil
+}
+
+func (b *bootstrapper) GenerateEtcdFlagsFile(outputFilename string) error {
+	log.Infof("Writing environment variables to %s", outputFilename)
+	etcdFLags, err := b.GenerateEtcdFlags()
 	if err != nil {
 		return err
 	}
-	return writeToFile(outputFilename, data)
+	return writeToFile(outputFilename, etcdFLags)
 }
 
 func (b *bootstrapper) clusterDoesNotExist() (bool, error) {
@@ -208,7 +220,6 @@ func (b *bootstrapper) constructInitialCluster(availablePeerURLs []string) strin
 }
 
 func writeToFile(outputFilename string, data string) error {
-	log.Infof("Writing environment variables to %s", outputFilename)
 	return ioutil.WriteFile(outputFilename, []byte(data), 0644)
 }
 

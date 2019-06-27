@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/elbv2"
+	"github.com/sky-uk/etcd-bootstrap/mock"
 	"github.com/sky-uk/etcd-bootstrap/provider"
 	"testing"
 
@@ -21,35 +22,8 @@ func TestLBTargetGroupRegistrationProvider(t *testing.T) {
 	RunSpecs(t, "Loadbalancer Target Group Registration Provider")
 }
 
-func (t testELBClient) DescribeTargetGroups(e *elbv2.DescribeTargetGroupsInput) (*elbv2.DescribeTargetGroupsOutput, error) {
-	Expect(e).To(Equal(t.mockDescribeTargetGroups.expectedInput))
-	return t.mockDescribeTargetGroups.describeTargetGroupsOutput, t.mockDescribeTargetGroups.err
-}
-
-func (t testELBClient) RegisterTargets(e *elbv2.RegisterTargetsInput) (*elbv2.RegisterTargetsOutput, error) {
-	Expect(e).To(Equal(t.mockRegisterTargets.expectedInput))
-	return t.mockRegisterTargets.registerTargetsOutput, t.mockRegisterTargets.err
-}
-
-type testELBClient struct {
-	mockDescribeTargetGroups mockDescribeTargetGroups
-	mockRegisterTargets      mockRegisterTargets
-}
-
-type mockDescribeTargetGroups struct {
-	expectedInput              *elbv2.DescribeTargetGroupsInput
-	describeTargetGroupsOutput *elbv2.DescribeTargetGroupsOutput
-	err                        error
-}
-
-type mockRegisterTargets struct {
-	expectedInput         *elbv2.RegisterTargetsInput
-	registerTargetsOutput *elbv2.RegisterTargetsOutput
-	err                   error
-}
-
 var _ = Describe("Loadbalancer Target Group Registration Provider", func() {
-	var elbClient testELBClient
+	var elbClient mock.AWSELBClient
 	var registrationProvider LBTargetGroupRegistrationProvider
 
 	BeforeEach(func() {
@@ -61,21 +35,21 @@ var _ = Describe("Loadbalancer Target Group Registration Provider", func() {
 			})
 		}
 		// create dummy client responses
-		elbClient = testELBClient{
-			mockDescribeTargetGroups: mockDescribeTargetGroups{
-				expectedInput: &elbv2.DescribeTargetGroupsInput{
+		elbClient = mock.AWSELBClient{
+			MockDescribeTargetGroups: mock.MockDescribeTargetGroups{
+				ExpectedInput: &elbv2.DescribeTargetGroupsInput{
 					Names: []*string{
 						aws.String(targetGroupName),
 					},
 				},
-				describeTargetGroupsOutput: &elbv2.DescribeTargetGroupsOutput{
+				DescribeTargetGroupsOutput: &elbv2.DescribeTargetGroupsOutput{
 					TargetGroups: []*elbv2.TargetGroup{{
 						TargetGroupArn: aws.String(targetGroupARN),
 					}},
 				},
 			},
-			mockRegisterTargets: mockRegisterTargets{
-				expectedInput: &elbv2.RegisterTargetsInput{
+			MockRegisterTargets: mock.MockRegisterTargets{
+				ExpectedInput: &elbv2.RegisterTargetsInput{
 					TargetGroupArn: aws.String(targetGroupARN),
 					Targets: elbInstances,
 				},
@@ -93,19 +67,19 @@ var _ = Describe("Loadbalancer Target Group Registration Provider", func() {
 		})
 
 		It("passes when DescribeTargetGroups and RegisterTargets return expected values with no instances", func() {
-			elbClient.mockRegisterTargets.expectedInput.Targets = nil
+			elbClient.MockRegisterTargets.ExpectedInput.Targets = nil
 			registrationProvider.elb = elbClient
 			Expect(registrationProvider.Update([]provider.Instance{})).To(BeNil())
 		})
 
 		It("fails when DescribeTargetGroups errors", func() {
-			elbClient.mockDescribeTargetGroups.err = fmt.Errorf("failed to describe target group")
+			elbClient.MockDescribeTargetGroups.Err = fmt.Errorf("failed to describe target group")
 			registrationProvider.elb = elbClient
 			Expect(registrationProvider.Update(testInstances)).ToNot(BeNil())
 		})
 
 		It("fails when there are more than 1 target groups returned", func() {
-			elbClient.mockDescribeTargetGroups.describeTargetGroupsOutput = &elbv2.DescribeTargetGroupsOutput{
+			elbClient.MockDescribeTargetGroups.DescribeTargetGroupsOutput = &elbv2.DescribeTargetGroupsOutput{
 				TargetGroups: []*elbv2.TargetGroup{{}, {}},
 			}
 			registrationProvider.elb = elbClient
@@ -113,7 +87,7 @@ var _ = Describe("Loadbalancer Target Group Registration Provider", func() {
 		})
 
 		It("fails when there are 0 target groups returned", func() {
-			elbClient.mockDescribeTargetGroups.describeTargetGroupsOutput = &elbv2.DescribeTargetGroupsOutput{
+			elbClient.MockDescribeTargetGroups.DescribeTargetGroupsOutput = &elbv2.DescribeTargetGroupsOutput{
 				TargetGroups: []*elbv2.TargetGroup{},
 			}
 			registrationProvider.elb = elbClient
@@ -121,7 +95,7 @@ var _ = Describe("Loadbalancer Target Group Registration Provider", func() {
 		})
 
 		It("fails when RegisterTargets errors", func() {
-			elbClient.mockRegisterTargets.err = fmt.Errorf("failed to register targets")
+			elbClient.MockRegisterTargets.Err = fmt.Errorf("failed to register targets")
 			registrationProvider.elb = elbClient
 			Expect(registrationProvider.Update(testInstances)).ToNot(BeNil())
 		})

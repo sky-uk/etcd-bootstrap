@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/sky-uk/etcd-bootstrap/mock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -40,48 +41,6 @@ var (
 		},
 	}
 )
-
-func (t testAWSASGClient) DescribeAutoScalingInstances(a *autoscaling.DescribeAutoScalingInstancesInput) (*autoscaling.DescribeAutoScalingInstancesOutput, error) {
-	Expect(a).To(Equal(t.mockDescribeAutoScalingInstances.expectedInput))
-	return t.mockDescribeAutoScalingInstances.describeAutoScalingInstancesOutput, t.mockDescribeAutoScalingInstances.err
-}
-
-func (t testAWSASGClient) DescribeAutoScalingGroups(a *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
-	Expect(a).To(Equal(t.mockDescribeAutoScalingGroups.expectedInput))
-	return t.mockDescribeAutoScalingGroups.describeAutoScalingGroupsOutput, t.mockDescribeAutoScalingGroups.err
-}
-
-func (t testAWSEC2Client) DescribeInstances(e *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
-	Expect(e).To(Equal(t.mockDescribeInstances.expectedInput))
-	return t.mockDescribeInstances.describeInstancesOutput, t.mockDescribeInstances.err
-}
-
-type testAWSASGClient struct {
-	mockDescribeAutoScalingInstances mockDescribeAutoScalingInstances
-	mockDescribeAutoScalingGroups    mockDescribeAutoScalingGroups
-}
-
-type mockDescribeAutoScalingInstances struct {
-	expectedInput                      *autoscaling.DescribeAutoScalingInstancesInput
-	describeAutoScalingInstancesOutput *autoscaling.DescribeAutoScalingInstancesOutput
-	err                                error
-}
-
-type mockDescribeAutoScalingGroups struct {
-	expectedInput                   *autoscaling.DescribeAutoScalingGroupsInput
-	describeAutoScalingGroupsOutput *autoscaling.DescribeAutoScalingGroupsOutput
-	err                             error
-}
-
-type testAWSEC2Client struct {
-	mockDescribeInstances mockDescribeInstances
-}
-
-type mockDescribeInstances struct {
-	expectedInput           *ec2.DescribeInstancesInput
-	describeInstancesOutput *ec2.DescribeInstancesOutput
-	err                     error
-}
 
 var _ = Describe("AWS Provider", func() {
 	var identityDoc ec2metadata.EC2InstanceIdentityDocument
@@ -116,8 +75,8 @@ var _ = Describe("AWS Provider", func() {
 	})
 
 	Context("AWS clients", func() {
-		var awsASGClient testAWSASGClient
-		var awsEC2Client testAWSEC2Client
+		var awsASGClient mock.AWSASGClient
+		var awsEC2Client mock.AWSEC2Client
 
 		BeforeEach(func() {
 			// generate instance arrays based on the test data
@@ -136,31 +95,31 @@ var _ = Describe("AWS Provider", func() {
 				})
 			}
 			// create dummy client responses
-			awsASGClient = testAWSASGClient{
-				mockDescribeAutoScalingInstances: mockDescribeAutoScalingInstances{
-					expectedInput: &autoscaling.DescribeAutoScalingInstancesInput{
+			awsASGClient = mock.AWSASGClient{
+				MockDescribeAutoScalingInstances: mock.DescribeAutoScalingInstances{
+					ExpectedInput: &autoscaling.DescribeAutoScalingInstancesInput{
 						InstanceIds: aws.StringSlice([]string{localInstanceID}),
 					},
-					describeAutoScalingInstancesOutput: &autoscaling.DescribeAutoScalingInstancesOutput{
+					DescribeAutoScalingInstancesOutput: &autoscaling.DescribeAutoScalingInstancesOutput{
 						AutoScalingInstances: []*autoscaling.InstanceDetails{{
 							AutoScalingGroupName: aws.String(autoscalingGroupName),
 						}},
 					},
 				},
-				mockDescribeAutoScalingGroups: mockDescribeAutoScalingGroups{
-					expectedInput: &autoscaling.DescribeAutoScalingGroupsInput{
+				MockDescribeAutoScalingGroups: mock.DescribeAutoScalingGroups{
+					ExpectedInput: &autoscaling.DescribeAutoScalingGroupsInput{
 						AutoScalingGroupNames: aws.StringSlice([]string{autoscalingGroupName}),
 					},
-					describeAutoScalingGroupsOutput: &autoscaling.DescribeAutoScalingGroupsOutput{
+					DescribeAutoScalingGroupsOutput: &autoscaling.DescribeAutoScalingGroupsOutput{
 						AutoScalingGroups: []*autoscaling.Group{{
 							Instances: autoscalingInstances,
 						}},
 					},
 				},
 			}
-			awsEC2Client = testAWSEC2Client{
-				mockDescribeInstances: mockDescribeInstances{
-					expectedInput: &ec2.DescribeInstancesInput{
+			awsEC2Client = mock.AWSEC2Client{
+				MockDescribeInstances: mock.DescribeInstances{
+					ExpectedInput: &ec2.DescribeInstancesInput{
 						InstanceIds: aws.StringSlice(autoscalingInstanceIDs),
 						Filters: []*ec2.Filter{
 							{
@@ -169,7 +128,7 @@ var _ = Describe("AWS Provider", func() {
 							},
 						},
 					},
-					describeInstancesOutput: &ec2.DescribeInstancesOutput{
+					DescribeInstancesOutput: &ec2.DescribeInstancesOutput{
 						Reservations: []*ec2.Reservation{{
 							Instances: ec2Instances,
 						}},
@@ -179,19 +138,19 @@ var _ = Describe("AWS Provider", func() {
 		})
 
 		It("queryInstances fails when getASGName errors", func() {
-			awsASGClient.mockDescribeAutoScalingInstances.err = fmt.Errorf("failed to describe autoscaling instances")
+			awsASGClient.MockDescribeAutoScalingInstances.Err = fmt.Errorf("failed to describe autoscaling instances")
 			_, err := queryInstances(identityDoc, awsASGClient, awsEC2Client)
 			Expect(err).ToNot(BeNil())
 		})
 
 		It("queryInstances fails when getASGInstanceIDs errors", func() {
-			awsASGClient.mockDescribeAutoScalingGroups.err = fmt.Errorf("failed to describe autoscaling groups")
+			awsASGClient.MockDescribeAutoScalingGroups.Err = fmt.Errorf("failed to describe autoscaling groups")
 			_, err := queryInstances(identityDoc, awsASGClient, awsEC2Client)
 			Expect(err).ToNot(BeNil())
 		})
 
 		It("queryInstances fails when DescribeInstances errors", func() {
-			awsEC2Client.mockDescribeInstances.err = fmt.Errorf("failed to describe instances")
+			awsEC2Client.MockDescribeInstances.Err = fmt.Errorf("failed to describe instances")
 			_, err := queryInstances(identityDoc, awsASGClient, awsEC2Client)
 			Expect(err).ToNot(BeNil())
 		})
@@ -203,25 +162,25 @@ var _ = Describe("AWS Provider", func() {
 		})
 
 		It("getASGName fails when there are more than 1 autoscaling groups returned for an instance", func() {
-			awsASGClient.mockDescribeAutoScalingInstances.describeAutoScalingInstancesOutput.AutoScalingInstances = []*autoscaling.InstanceDetails{{}, {}}
+			awsASGClient.MockDescribeAutoScalingInstances.DescribeAutoScalingInstancesOutput.AutoScalingInstances = []*autoscaling.InstanceDetails{{}, {}}
 			_, err := getASGName(localInstanceID, awsASGClient)
 			Expect(err).ToNot(BeNil())
 		})
 
 		It("getASGName fails when there are 0 autoscaling groups returned for an instance", func() {
-			awsASGClient.mockDescribeAutoScalingInstances.describeAutoScalingInstancesOutput.AutoScalingInstances = []*autoscaling.InstanceDetails{}
+			awsASGClient.MockDescribeAutoScalingInstances.DescribeAutoScalingInstancesOutput.AutoScalingInstances = []*autoscaling.InstanceDetails{}
 			_, err := getASGName(localInstanceID, awsASGClient)
 			Expect(err).ToNot(BeNil())
 		})
 
 		It("getASGInstanceIDs fails when there are more than 1 autoscaling groups returned", func() {
-			awsASGClient.mockDescribeAutoScalingGroups.describeAutoScalingGroupsOutput.AutoScalingGroups = []*autoscaling.Group{{}, {}}
+			awsASGClient.MockDescribeAutoScalingGroups.DescribeAutoScalingGroupsOutput.AutoScalingGroups = []*autoscaling.Group{{}, {}}
 			_, err := getASGInstanceIDs(autoscalingGroupName, awsASGClient)
 			Expect(err).ToNot(BeNil())
 		})
 
 		It("getASGInstanceIDs fails when there are 0 autoscaling groups returned", func() {
-			awsASGClient.mockDescribeAutoScalingGroups.describeAutoScalingGroupsOutput.AutoScalingGroups = []*autoscaling.Group{}
+			awsASGClient.MockDescribeAutoScalingGroups.DescribeAutoScalingGroupsOutput.AutoScalingGroups = []*autoscaling.Group{}
 			_, err := getASGInstanceIDs(autoscalingGroupName, awsASGClient)
 			Expect(err).ToNot(BeNil())
 		})

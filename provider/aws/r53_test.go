@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/route53"
+	"github.com/sky-uk/etcd-bootstrap/mock"
 	"github.com/sky-uk/etcd-bootstrap/provider"
 	"testing"
 
@@ -22,35 +23,8 @@ func TestRoute53RegistrationProvider(t *testing.T) {
 	RunSpecs(t, "Loadbalancer Target Group Registration Provider")
 }
 
-func (t testR53Client) GetHostedZone(r *route53.GetHostedZoneInput) (*route53.GetHostedZoneOutput, error) {
-	Expect(r).To(Equal(t.mockGetHostedZone.expectedInput))
-	return t.mockGetHostedZone.getHostedZoneOutput, t.mockGetHostedZone.err
-}
-
-func (t testR53Client) ChangeResourceRecordSets(r *route53.ChangeResourceRecordSetsInput) (*route53.ChangeResourceRecordSetsOutput, error) {
-	Expect(r).To(Equal(t.mockChangeResourceRecordSets.expectedInput))
-	return t.mockChangeResourceRecordSets.changeResourceRecordSetsOutput, t.mockChangeResourceRecordSets.err
-}
-
-type testR53Client struct {
-	mockGetHostedZone            mockGetHostedZone
-	mockChangeResourceRecordSets mockChangeResourceRecordSets
-}
-
-type mockGetHostedZone struct {
-	expectedInput       *route53.GetHostedZoneInput
-	getHostedZoneOutput *route53.GetHostedZoneOutput
-	err                 error
-}
-
-type mockChangeResourceRecordSets struct {
-	expectedInput                  *route53.ChangeResourceRecordSetsInput
-	changeResourceRecordSetsOutput *route53.ChangeResourceRecordSetsOutput
-	err                            error
-}
-
 var _ = Describe("Route53 Registration Provider", func() {
-	var r53Client testR53Client
+	var r53Client mock.AWSR53Client
 	var registrationProvider Route53RegistrationProvider
 
 	BeforeEach(func() {
@@ -62,20 +36,20 @@ var _ = Describe("Route53 Registration Provider", func() {
 			})
 		}
 		// create dummy client responses
-		r53Client = testR53Client{
-			mockGetHostedZone: mockGetHostedZone{
-				expectedInput: &route53.GetHostedZoneInput{
+		r53Client = mock.AWSR53Client{
+			MockGetHostedZone: mock.MockGetHostedZone{
+				ExpectedInput: &route53.GetHostedZoneInput{
 					Id: aws.String(hostedZoneID),
 				},
-				getHostedZoneOutput: &route53.GetHostedZoneOutput{
+				GetHostedZoneOutput: &route53.GetHostedZoneOutput{
 					HostedZone: &route53.HostedZone{
 						Id:   aws.String(hostedZoneID),
 						Name: aws.String(hostedZoneName),
 					},
 				},
 			},
-			mockChangeResourceRecordSets: mockChangeResourceRecordSets{
-				expectedInput: &route53.ChangeResourceRecordSetsInput{
+			MockChangeResourceRecordSets: mock.MockChangeResourceRecordSets{
+				ExpectedInput: &route53.ChangeResourceRecordSetsInput{
 					ChangeBatch: &route53.ChangeBatch{
 						Changes: []*route53.Change{
 							{
@@ -106,7 +80,7 @@ var _ = Describe("Route53 Registration Provider", func() {
 		})
 
 		It("passes when GetHostedZone and ChangeResourceRecordSets return expected values with no instances", func() {
-			r53Client.mockChangeResourceRecordSets.expectedInput.ChangeBatch.Changes = []*route53.Change{
+			r53Client.MockChangeResourceRecordSets.ExpectedInput.ChangeBatch.Changes = []*route53.Change{
 				{
 					Action: aws.String(route53.ChangeActionUpsert),
 					ResourceRecordSet: &route53.ResourceRecordSet{
@@ -120,13 +94,13 @@ var _ = Describe("Route53 Registration Provider", func() {
 		})
 
 		It("fails when GetHostedZone returns an error", func() {
-			r53Client.mockGetHostedZone.err = fmt.Errorf("failed to get hosted zones")
+			r53Client.MockGetHostedZone.Err = fmt.Errorf("failed to get hosted zones")
 			registrationProvider.r53 = r53Client
 			Expect(registrationProvider.Update(testInstances))
 		})
 
 		It("fails when ChangeResourceRecordSets returns an error", func() {
-			r53Client.mockChangeResourceRecordSets.err = fmt.Errorf("failed to get change resource record set")
+			r53Client.MockChangeResourceRecordSets.Err = fmt.Errorf("failed to get change resource record set")
 			registrationProvider.r53 = r53Client
 			Expect(registrationProvider.Update(testInstances))
 		})

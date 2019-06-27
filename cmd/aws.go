@@ -64,7 +64,7 @@ func aws(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to create etcd bootstrapper: %v", err)
 	}
 
-	if err := bootstrapper.GenerateEtcdFlags(outputFileName); err != nil {
+	if err := bootstrapper.GenerateEtcdFlagsFile(outputFileName); err != nil {
 		log.Fatalf("Failed to generate etcd flags file: %v", err)
 	}
 
