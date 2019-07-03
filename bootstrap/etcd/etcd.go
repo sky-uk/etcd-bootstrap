@@ -1,13 +1,19 @@
-package etcdcluster
+package etcd
 
 import (
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/client"
-	"github.com/sky-uk/etcd-bootstrap/lib/cloud"
+	log "github.com/sirupsen/logrus"
+	"github.com/sky-uk/etcd-bootstrap/provider"
 	"golang.org/x/net/context"
 )
+
+type etcdMembersAPI interface {
+	List(ctx context.Context) ([]client.Member, error)
+	Add(ctx context.Context, peerURL string) (*client.Member, error)
+	Remove(ctx context.Context, mID string) error
+}
 
 // Cluster represents an etcd cluster.
 type Cluster interface {
@@ -20,7 +26,7 @@ type Cluster interface {
 }
 
 type cluster struct {
-	client client.Client
+	membersAPIClient etcdMembersAPI
 }
 
 // Member represents a node in the etcd cluster.
@@ -29,9 +35,9 @@ type Member struct {
 	PeerURL string
 }
 
-// New returns a cluster object representing the etcd cluster in the local auto scaling group.
-func New(cloud cloud.Cloud) (Cluster, error) {
-	instances := cloud.GetInstances()
+// New returns a cluster object representing the etcd cluster in the cloud provider.
+func New(provider provider.Provider) (Cluster, error) {
+	instances := provider.GetInstances()
 
 	var endpoints []string
 	for _, instance := range instances {
@@ -42,15 +48,14 @@ func New(cloud cloud.Cloud) (Cluster, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &cluster{c}, nil
+
+	return &cluster{client.NewMembersAPI(c)}, nil
 }
 
 func (e *cluster) Members() ([]Member, error) {
-	membersAPI := client.NewMembersAPI(e.client)
-	etcdMembers, err := membersAPI.List(context.Background())
-
+	etcdMembers, err := e.membersAPIClient.List(context.Background())
 	if err != nil {
-		log.Info("Detected cluster errors, this is normal when bootstrapping a new cluster: ", err)
+		log.Infof("Detected cluster errors, this is normal when bootstrapping a new cluster: %v", err)
 	}
 
 	var members []Member
@@ -68,16 +73,13 @@ func (e *cluster) Members() ([]Member, error) {
 	return members, nil
 }
 
-func assertSinglePeerURL(member client.Member) error {
-	if len(member.PeerURLs) != 1 {
-		return fmt.Errorf("expected a single peer URL, but found %v for %s", member.PeerURLs, member.ID)
-	}
-	return nil
+func (e *cluster) AddMember(peerURL string) error {
+	_, err := e.membersAPIClient.Add(context.Background(), peerURL)
+	return err
 }
 
 func (e *cluster) RemoveMember(peerURL string) error {
-	membersAPI := client.NewMembersAPI(e.client)
-	members, err := membersAPI.List(context.Background())
+	members, err := e.membersAPIClient.List(context.Background())
 	if err != nil {
 		return err
 	}
@@ -87,7 +89,7 @@ func (e *cluster) RemoveMember(peerURL string) error {
 			return err
 		}
 		if member.PeerURLs[0] == peerURL {
-			return membersAPI.Remove(context.Background(), member.ID)
+			return e.membersAPIClient.Remove(context.Background(), member.ID)
 		}
 	}
 
@@ -95,8 +97,9 @@ func (e *cluster) RemoveMember(peerURL string) error {
 	return nil
 }
 
-func (e *cluster) AddMember(peerURL string) error {
-	membersAPI := client.NewMembersAPI(e.client)
-	_, err := membersAPI.Add(context.Background(), peerURL)
-	return err
+func assertSinglePeerURL(member client.Member) error {
+	if len(member.PeerURLs) != 1 {
+		return fmt.Errorf("expected a single peer URL, but found %v for %s", member.PeerURLs, member.ID)
+	}
+	return nil
 }

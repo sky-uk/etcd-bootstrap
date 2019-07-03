@@ -1,27 +1,27 @@
 language: go
 
 go:
-- 1.11
+  - 1.11
 
 install:
--  go get -u golang.org/x/lint/golint
--  go get -u golang.org/x/tools/cmd/goimports
+  - go get -u golang.org/x/lint/golint
+  - go get -u golang.org/x/tools/cmd/goimports
 
 services:
-- docker
+  - docker
 
 script: make travis
 
 deploy:
-- provider: releases
-  api_key:
-    secure: PueGNQ628Vjcc0zvWIPumGY60kymbti/IMYT44KF30XcCbRwnl6/2BjQ9oPaHFRPg+7Z8wo6Jqqm6W4Dqw7jCHuCOVNw3QfoZVmIqA7xZ1vrXqjtFKZ+qt2FLJy0PVjpqacNHnHRT2TGbYD7wpsKNiTEkogARRjGrJn+4/gsTgQbPByRZsd4hlNbYznAN4F4EVDsB6pf2wbGTQIIAAjbq5QXjrtyZxCobu9uOh8CqIteSr9ALrajr/PnRSZGKEJpnR5CiVK1eCwzUslZDgZAdX3kX6R4G/FkzxoI12Smu+8mYH97YcfWpP1+RZYQliWDEn384y1/idwmPOrpwxQSNZyPlrgtjqAigqiAFDHBxzXcKctK51NbP9BnMkAUB4WAzoGl0Ez1tFdgkYcOTef+ynDP5EIWOjOe/HlzBnZ25qasKqQEV90my/4SanW6exTxqZiT/EB+TGR99lw3IOtd5qedPfgoAKF1hLwtQea2Oe6Jo4kEWtpCtGh2iSZlxd23rS21bLAPIz3QluiMob4euxFTEV5sl80Zu+eSgUPbaGQU93cVw5HDaMyc7idv9lQU27kKk8WxGYkUorAUzJ4oaWImqbksPtNiKCi3wmNpXZx+pvXwOQHlidxnsp0Y2p3JwXA4Mx5mCHF3S7JwAnmQm5ogkB+K9jUTVPOLvcwLCOo=
-  file: etcd-bootstrap
-  skip_cleanup: true
-  on:
-    repo: sky-uk/etcd-bootstrap
-    tags: true
-- provider: script
-  script: make release
-  on:
-    tags: true
+  - provider: releases
+    api_key:
+      secure: PueGNQ628Vjcc0zvWIPumGY60kymbti/IMYT44KF30XcCbRwnl6/2BjQ9oPaHFRPg+7Z8wo6Jqqm6W4Dqw7jCHuCOVNw3QfoZVmIqA7xZ1vrXqjtFKZ+qt2FLJy0PVjpqacNHnHRT2TGbYD7wpsKNiTEkogARRjGrJn+4/gsTgQbPByRZsd4hlNbYznAN4F4EVDsB6pf2wbGTQIIAAjbq5QXjrtyZxCobu9uOh8CqIteSr9ALrajr/PnRSZGKEJpnR5CiVK1eCwzUslZDgZAdX3kX6R4G/FkzxoI12Smu+8mYH97YcfWpP1+RZYQliWDEn384y1/idwmPOrpwxQSNZyPlrgtjqAigqiAFDHBxzXcKctK51NbP9BnMkAUB4WAzoGl0Ez1tFdgkYcOTef+ynDP5EIWOjOe/HlzBnZ25qasKqQEV90my/4SanW6exTxqZiT/EB+TGR99lw3IOtd5qedPfgoAKF1hLwtQea2Oe6Jo4kEWtpCtGh2iSZlxd23rS21bLAPIz3QluiMob4euxFTEV5sl80Zu+eSgUPbaGQU93cVw5HDaMyc7idv9lQU27kKk8WxGYkUorAUzJ4oaWImqbksPtNiKCi3wmNpXZx+pvXwOQHlidxnsp0Y2p3JwXA4Mx5mCHF3S7JwAnmQm5ogkB+K9jUTVPOLvcwLCOo=
+    file: etcd-bootstrap
+    skip_cleanup: true
+    on:
+      repo: sky-uk/etcd-bootstrap
+      tags: true
+  - provider: script
+    script: make release
+    on:
+      tags: true
