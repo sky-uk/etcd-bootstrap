@@ -11,6 +11,7 @@ import (
 	"github.com/sky-uk/etcd-bootstrap/provider"
 )
 
+// Route53RegistrationProviderConfig contains configuration when creating a default Route53RegistrationProvider
 type Route53RegistrationProviderConfig struct {
 	ZoneID   string
 	Hostname string
@@ -18,16 +19,21 @@ type Route53RegistrationProviderConfig struct {
 
 // r53 interface to abstract away from AWS commands
 type r53 interface {
+	// GetHostedZone gets information about a given hosted zone from the aws route53 client
 	GetHostedZone(r *route53.GetHostedZoneInput) (*route53.GetHostedZoneOutput, error)
+	// ChangeResourceRecordSets will update a given hosted zone using the aws route53 client
 	ChangeResourceRecordSets(r *route53.ChangeResourceRecordSetsInput) (*route53.ChangeResourceRecordSetsOutput, error)
 }
 
+// Route53RegistrationProvider contains an aws route53 client and information about the desired hosted zone the user
+// wants to update
 type Route53RegistrationProvider struct {
 	zoneID   string
 	hostname string
 	r53      r53
 }
 
+// NewRoute53RegistrationProvider returns a default Route53RegistrationProvider and initiates an new aws route53 client
 func NewRoute53RegistrationProvider(c *Route53RegistrationProviderConfig) (provider.RegistrationProvider, error) {
 	awsSession, err := session.NewSession()
 	if err != nil {

@@ -18,6 +18,7 @@ const (
 	targetGroupARN  = "test-target-group-arn"
 )
 
+// TestLBTargetGroupRegistrationProvider to register the test suite
 func TestLBTargetGroupRegistrationProvider(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Loadbalancer Target Group Registration Provider")
@@ -37,7 +38,7 @@ var _ = Describe("Loadbalancer Target Group Registration Provider", func() {
 		}
 		// create dummy client responses
 		elbClient = mock.AWSELBClient{
-			MockDescribeTargetGroups: mock.MockDescribeTargetGroups{
+			MockDescribeTargetGroups: mock.DescribeTargetGroups{
 				ExpectedInput: &elbv2.DescribeTargetGroupsInput{
 					Names: []*string{
 						aws.String(targetGroupName),
@@ -49,7 +50,7 @@ var _ = Describe("Loadbalancer Target Group Registration Provider", func() {
 					}},
 				},
 			},
-			MockRegisterTargets: mock.MockRegisterTargets{
+			MockRegisterTargets: mock.RegisterTargets{
 				ExpectedInput: &elbv2.RegisterTargetsInput{
 					TargetGroupArn: aws.String(targetGroupARN),
 					Targets:        elbInstances,

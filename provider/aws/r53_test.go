@@ -19,6 +19,7 @@ const (
 	hostname       = "my-test-etcd-cluster"
 )
 
+// TestRoute53RegistrationProvider to register the test suite
 func TestRoute53RegistrationProvider(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Loadbalancer Target Group Registration Provider")
@@ -38,7 +39,7 @@ var _ = Describe("Route53 Registration Provider", func() {
 		}
 		// create dummy client responses
 		r53Client = mock.AWSR53Client{
-			MockGetHostedZone: mock.MockGetHostedZone{
+			MockGetHostedZone: mock.GetHostedZone{
 				ExpectedInput: &route53.GetHostedZoneInput{
 					Id: aws.String(hostedZoneID),
 				},
@@ -49,7 +50,7 @@ var _ = Describe("Route53 Registration Provider", func() {
 					},
 				},
 			},
-			MockChangeResourceRecordSets: mock.MockChangeResourceRecordSets{
+			MockChangeResourceRecordSets: mock.ChangeResourceRecordSets{
 				ExpectedInput: &route53.ChangeResourceRecordSetsInput{
 					ChangeBatch: &route53.ChangeBatch{
 						Changes: []*route53.Change{

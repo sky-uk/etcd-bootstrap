@@ -15,6 +15,7 @@ import (
 	"github.com/sky-uk/etcd-bootstrap/mock"
 )
 
+// TestAWSProvider to register the test suite
 func TestAWSProvider(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "AWS Provider")

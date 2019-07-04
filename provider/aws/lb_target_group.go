@@ -10,21 +10,28 @@ import (
 	"github.com/sky-uk/etcd-bootstrap/provider"
 )
 
+// LBTargetGroupRegistrationProviderConfig contains configuration when creating a default LBTargetGroupRegistrationProvider
 type LBTargetGroupRegistrationProviderConfig struct {
 	TargetGroupName string
 }
 
 // elb interface to abstract away from AWS commands
 type elb interface {
+	// DescribeTargetGroups returns information about an aws elb target group
 	DescribeTargetGroups(e *elbv2.DescribeTargetGroupsInput) (*elbv2.DescribeTargetGroupsOutput, error)
+	// RegisterTargets registers instance or ip targets with an aws elb target group
 	RegisterTargets(e *elbv2.RegisterTargetsInput) (*elbv2.RegisterTargetsOutput, error)
 }
 
+// LBTargetGroupRegistrationProvider contains an aws elb client and a target group name used for registering etcd
+// cluster information with an aws elb target group
 type LBTargetGroupRegistrationProvider struct {
 	targetGroupName string
 	elb             elb
 }
 
+// NewLBTargetGroupRegistrationProvider returns a default LBTargetGroupRegistrationProvider and initiates a new aws elb
+// client
 func NewLBTargetGroupRegistrationProvider(c *LBTargetGroupRegistrationProviderConfig) (provider.RegistrationProvider, error) {
 	awsSession, err := session.NewSession()
 	if err != nil {

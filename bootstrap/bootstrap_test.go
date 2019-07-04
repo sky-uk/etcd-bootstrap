@@ -23,6 +23,7 @@ var (
 	localClientURL = fmt.Sprintf("http://%v:2379", localPrivateIP)
 )
 
+// TestBoostrap to register the test suite
 func TestBoostrap(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Bootstrap")
@@ -37,7 +38,7 @@ var _ = Describe("Bootstrap", func() {
 	BeforeEach(func() {
 		cloudProvider = mock.CloudProvider{
 			// GetLocalInstance() will always return the constant values
-			MockGetLocalInstance: mock.MockGetLocalInstance{
+			MockGetLocalInstance: mock.GetLocalInstance{
 				GetLocalInstance: provider.Instance{
 					InstanceID: localInstanceID,
 					PrivateIP:  localPrivateIP,
@@ -46,7 +47,7 @@ var _ = Describe("Bootstrap", func() {
 		}
 		etcdCluster = mock.EtcdCluster{
 			// AddMember() is only ever called using the local instance values which are constants
-			MockAddMember: mock.MockAddMember{
+			MockAddMember: mock.AddMember{
 				ExpectedInput: localPeerURL,
 			},
 		}

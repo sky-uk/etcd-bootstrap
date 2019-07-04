@@ -5,165 +5,190 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/aws/aws-sdk-go/service/route53"
-	. "github.com/onsi/gomega"
 	"github.com/sky-uk/etcd-bootstrap/bootstrap/etcd"
 	"github.com/sky-uk/etcd-bootstrap/provider"
+
+	"github.com/onsi/gomega"
 )
 
-// Mock AWS ASG client
+// AWSASGClient for mocking calls to the aws autoscaling client
 type AWSASGClient struct {
 	MockDescribeAutoScalingInstances DescribeAutoScalingInstances
 	MockDescribeAutoScalingGroups    DescribeAutoScalingGroups
 }
 
+// DescribeAutoScalingInstances sets the expected input and output for DescribeAutoScalingInstances() on AWSASGClient
 type DescribeAutoScalingInstances struct {
 	ExpectedInput                      *autoscaling.DescribeAutoScalingInstancesInput
 	DescribeAutoScalingInstancesOutput *autoscaling.DescribeAutoScalingInstancesOutput
 	Err                                error
 }
 
+// DescribeAutoScalingGroups sets the expected input and output for DescribeAutoScalingGroups() on AWSASGClient
 type DescribeAutoScalingGroups struct {
 	ExpectedInput                   *autoscaling.DescribeAutoScalingGroupsInput
 	DescribeAutoScalingGroupsOutput *autoscaling.DescribeAutoScalingGroupsOutput
 	Err                             error
 }
 
+// DescribeAutoScalingInstances mocks the aws autoscaling group client
 func (t AWSASGClient) DescribeAutoScalingInstances(a *autoscaling.DescribeAutoScalingInstancesInput) (*autoscaling.DescribeAutoScalingInstancesOutput, error) {
-	Expect(a).To(Equal(t.MockDescribeAutoScalingInstances.ExpectedInput))
+	gomega.Expect(a).To(gomega.Equal(t.MockDescribeAutoScalingInstances.ExpectedInput))
 	return t.MockDescribeAutoScalingInstances.DescribeAutoScalingInstancesOutput, t.MockDescribeAutoScalingInstances.Err
 }
 
+// DescribeAutoScalingGroups mocks the aws autoscaling group client
 func (t AWSASGClient) DescribeAutoScalingGroups(a *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
-	Expect(a).To(Equal(t.MockDescribeAutoScalingGroups.ExpectedInput))
+	gomega.Expect(a).To(gomega.Equal(t.MockDescribeAutoScalingGroups.ExpectedInput))
 	return t.MockDescribeAutoScalingGroups.DescribeAutoScalingGroupsOutput, t.MockDescribeAutoScalingGroups.Err
 }
 
-// Mock AWS EC2 client
+// AWSEC2Client for mocking calls to the aws ec2 client
 type AWSEC2Client struct {
 	MockDescribeInstances DescribeInstances
 }
 
+// DescribeInstances sets the expected input and output for DescribeInstances() on AWSEC2Client
 type DescribeInstances struct {
 	ExpectedInput           *ec2.DescribeInstancesInput
 	DescribeInstancesOutput *ec2.DescribeInstancesOutput
 	Err                     error
 }
 
+// DescribeInstances mocks the aws ec2 client
 func (t AWSEC2Client) DescribeInstances(e *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
-	Expect(e).To(Equal(t.MockDescribeInstances.ExpectedInput))
+	gomega.Expect(e).To(gomega.Equal(t.MockDescribeInstances.ExpectedInput))
 	return t.MockDescribeInstances.DescribeInstancesOutput, t.MockDescribeInstances.Err
 }
 
-// Mock AWS ELB client
+// AWSELBClient for mocking calls to the aws elb client
 type AWSELBClient struct {
-	MockDescribeTargetGroups MockDescribeTargetGroups
-	MockRegisterTargets      MockRegisterTargets
+	MockDescribeTargetGroups DescribeTargetGroups
+	MockRegisterTargets      RegisterTargets
 }
 
-type MockDescribeTargetGroups struct {
+// DescribeTargetGroups sets the expected input and output for DescribeTargetGroups() on AWSELBClient
+type DescribeTargetGroups struct {
 	ExpectedInput              *elbv2.DescribeTargetGroupsInput
 	DescribeTargetGroupsOutput *elbv2.DescribeTargetGroupsOutput
 	Err                        error
 }
 
+// DescribeTargetGroups mocks the aws elb client
 func (t AWSELBClient) DescribeTargetGroups(e *elbv2.DescribeTargetGroupsInput) (*elbv2.DescribeTargetGroupsOutput, error) {
-	Expect(e).To(Equal(t.MockDescribeTargetGroups.ExpectedInput))
+	gomega.Expect(e).To(gomega.Equal(t.MockDescribeTargetGroups.ExpectedInput))
 	return t.MockDescribeTargetGroups.DescribeTargetGroupsOutput, t.MockDescribeTargetGroups.Err
 }
 
-type MockRegisterTargets struct {
+// RegisterTargets sets the expected input and output for RegisterTargets() on AWSELBClient
+type RegisterTargets struct {
 	ExpectedInput         *elbv2.RegisterTargetsInput
 	RegisterTargetsOutput *elbv2.RegisterTargetsOutput
 	Err                   error
 }
 
+// RegisterTargets mocks the aws elb client
 func (t AWSELBClient) RegisterTargets(e *elbv2.RegisterTargetsInput) (*elbv2.RegisterTargetsOutput, error) {
-	Expect(e).To(Equal(t.MockRegisterTargets.ExpectedInput))
+	gomega.Expect(e).To(gomega.Equal(t.MockRegisterTargets.ExpectedInput))
 	return t.MockRegisterTargets.RegisterTargetsOutput, t.MockRegisterTargets.Err
 }
 
-// Mock AWS Route53 client
+// AWSR53Client for mocking calls to the aws route53 client
 type AWSR53Client struct {
-	MockGetHostedZone            MockGetHostedZone
-	MockChangeResourceRecordSets MockChangeResourceRecordSets
+	MockGetHostedZone            GetHostedZone
+	MockChangeResourceRecordSets ChangeResourceRecordSets
 }
 
-type MockGetHostedZone struct {
+// GetHostedZone sets the expected input and output for GetHostedZone() on AWSR53Client
+type GetHostedZone struct {
 	ExpectedInput       *route53.GetHostedZoneInput
 	GetHostedZoneOutput *route53.GetHostedZoneOutput
 	Err                 error
 }
 
+// GetHostedZone mocks the aws route53 client
 func (t AWSR53Client) GetHostedZone(r *route53.GetHostedZoneInput) (*route53.GetHostedZoneOutput, error) {
-	Expect(r).To(Equal(t.MockGetHostedZone.ExpectedInput))
+	gomega.Expect(r).To(gomega.Equal(t.MockGetHostedZone.ExpectedInput))
 	return t.MockGetHostedZone.GetHostedZoneOutput, t.MockGetHostedZone.Err
 }
 
-type MockChangeResourceRecordSets struct {
+// ChangeResourceRecordSets sets the expected input and output for ChangeResourceRecordSets() on AWSR53Client
+type ChangeResourceRecordSets struct {
 	ExpectedInput                  *route53.ChangeResourceRecordSetsInput
 	ChangeResourceRecordSetsOutput *route53.ChangeResourceRecordSetsOutput
 	Err                            error
 }
 
+// ChangeResourceRecordSets mocks the aws route53 client
 func (t AWSR53Client) ChangeResourceRecordSets(r *route53.ChangeResourceRecordSetsInput) (*route53.ChangeResourceRecordSetsOutput, error) {
-	Expect(r).To(Equal(t.MockChangeResourceRecordSets.ExpectedInput))
+	gomega.Expect(r).To(gomega.Equal(t.MockChangeResourceRecordSets.ExpectedInput))
 	return t.MockChangeResourceRecordSets.ChangeResourceRecordSetsOutput, t.MockChangeResourceRecordSets.Err
 }
 
-// Mock etcd cluster client
+// EtcdCluster for mocking calls to the etcd cluster package client
 type EtcdCluster struct {
-	MockMembers      MockMembers
-	MockRemoveMember MockRemoveMember
-	MockAddMember    MockAddMember
+	MockMembers      Members
+	MockRemoveMember RemoveMember
+	MockAddMember    AddMember
 }
 
-type MockMembers struct {
+// Members sets the expected output for Members() on EtcdCluster
+type Members struct {
 	MembersOutput []etcd.Member
 	Err           error
 }
 
+// Members mocks the etcd cluster package client
 func (t EtcdCluster) Members() ([]etcd.Member, error) {
 	return t.MockMembers.MembersOutput, t.MockMembers.Err
 }
 
-type MockRemoveMember struct {
+// RemoveMember sets the expected input for RemoveMember() on EtcdCluster
+type RemoveMember struct {
 	ExpectedInputs []string
 	Err            error
 }
 
+// RemoveMember mocks the etcd cluster package client
 func (t EtcdCluster) RemoveMember(peerURL string) error {
-	Expect(t.MockRemoveMember.ExpectedInputs).To(ContainElement(peerURL))
+	gomega.Expect(t.MockRemoveMember.ExpectedInputs).To(gomega.ContainElement(peerURL))
 	return t.MockRemoveMember.Err
 }
 
-type MockAddMember struct {
+// AddMember sets the expected input for AddMember() on EtcdCluster
+type AddMember struct {
 	ExpectedInput string
 	Err           error
 }
 
+// AddMember mocks the etcd cluster package client
 func (t EtcdCluster) AddMember(peerURL string) error {
-	Expect(peerURL).To(Equal(t.MockAddMember.ExpectedInput))
+	gomega.Expect(peerURL).To(gomega.Equal(t.MockAddMember.ExpectedInput))
 	return t.MockAddMember.Err
 }
 
-// Mock cloud provider
+// CloudProvider for mocking calls to an etcd-boostrap cloud provider
 type CloudProvider struct {
-	MockGetInstances     MockGetInstances
-	MockGetLocalInstance MockGetLocalInstance
+	MockGetInstances     GetInstances
+	MockGetLocalInstance GetLocalInstance
 }
 
-type MockGetInstances struct {
+// GetInstances sets the expected output for GetInstances() on CloudProvider
+type GetInstances struct {
 	GetInstancesOutput []provider.Instance
 }
 
+// GetInstances mocks the etcd-boostrap cloud provider
 func (t CloudProvider) GetInstances() []provider.Instance {
 	return t.MockGetInstances.GetInstancesOutput
 }
 
-type MockGetLocalInstance struct {
+// GetLocalInstance sets the expected output for GetLocalInstance() on CloudProvider
+type GetLocalInstance struct {
 	GetLocalInstance provider.Instance
 }
 
+// GetLocalInstance mocks the etcd-boostrap cloud provider
 func (t CloudProvider) GetLocalInstance() provider.Instance {
 	return t.MockGetLocalInstance.GetLocalInstance
 }

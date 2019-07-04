@@ -10,7 +10,10 @@ type Provider interface {
 	GetLocalInstance() Instance
 }
 
+// RegistrationProvider represents a cloud registration provider which can update an external service with information
+// about the bootstrapped etcd cluster (such as dns or loadbalancer pools)
 type RegistrationProvider interface {
+	// Update will update a registration provider with information about the etcd cluster using the discovered instances
 	Update(instances []Instance) error
 }
 
@@ -20,6 +23,8 @@ type Instance struct {
 	PrivateIP  string
 }
 
+// NewNoopRegistrationProvider can be used by cloud providers when they want to support optionally registering with
+// external registration providers
 func NewNoopRegistrationProvider() RegistrationProvider {
 	return noopRegistrationProvider{}
 }

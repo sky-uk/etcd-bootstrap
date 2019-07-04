@@ -11,49 +11,56 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Mock etcd members API client
+// EtcdMembersAPI for mocking calls to the coreos etcd client
 type EtcdMembersAPI struct {
-	MockList   MockList
-	MockAdd    MockAdd
-	MockRemove MockRemove
+	MockList   List
+	MockAdd    Add
+	MockRemove Remove
 }
 
-type MockList struct {
+// List sets the expected input and output for List() on EtcdMembersAPI
+type List struct {
 	ExpectedInput context.Context
 	ListOutput    []client.Member
 	Err           error
 }
 
+// List mocks the coreos etcd client
 func (t EtcdMembersAPI) List(ctx context.Context) ([]client.Member, error) {
 	Expect(ctx).To(Equal(t.MockList.ExpectedInput))
 	return t.MockList.ListOutput, t.MockList.Err
 }
 
-type MockAdd struct {
+// Add sets the expected input and output for Add() on EtcdMembersAPI
+type Add struct {
 	ExpectedContext context.Context
 	ExpectedPeerURL string
 	AddOutput       *client.Member
 	Err             error
 }
 
+// Add mocks the coreos etcd client
 func (t EtcdMembersAPI) Add(ctx context.Context, peerURL string) (*client.Member, error) {
 	Expect(ctx).To(Equal(t.MockAdd.ExpectedContext))
 	Expect(peerURL).To(Equal(t.MockAdd.ExpectedPeerURL))
 	return t.MockAdd.AddOutput, t.MockAdd.Err
 }
 
-type MockRemove struct {
+// Remove sets the expected input and output for Remove() on EtcdMembersAPI
+type Remove struct {
 	ExpectedContext context.Context
 	ExpectedMID     string
 	Err             error
 }
 
+// Remove mocks the coreos etcd client
 func (t EtcdMembersAPI) Remove(ctx context.Context, mID string) error {
 	Expect(ctx).To(Equal(t.MockRemove.ExpectedContext))
 	Expect(mID).To(Equal(t.MockRemove.ExpectedMID))
 	return t.MockRemove.Err
 }
 
+// TestEtcd to register the test suite
 func TestEtcd(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Etcd client")
@@ -66,7 +73,7 @@ var _ = Describe("Etcd client", func() {
 		// create dummy client with expected data
 		// this data can be manipulated within tests
 		membersAPIClient = EtcdMembersAPI{
-			MockList: MockList{
+			MockList: List{
 				ExpectedInput: context.Background(),
 				ListOutput: []client.Member{
 					{
@@ -83,10 +90,10 @@ var _ = Describe("Etcd client", func() {
 					},
 				},
 			},
-			MockAdd: MockAdd{
+			MockAdd: Add{
 				ExpectedContext: context.Background(),
 			},
-			MockRemove: MockRemove{
+			MockRemove: Remove{
 				ExpectedContext: context.Background(),
 			},
 		}
