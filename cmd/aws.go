@@ -15,9 +15,17 @@ const (
 	noop registrationProvider = iota
 	route53
 	lb
-
-	defaultAWSRegistrationProvider = "noop"
 )
+
+var (
+	awsRegistrationProviders = []string{
+		"noop",
+		"route53",
+		"lb",
+	}
+)
+
+const defaultAWSRegistrationProvider = "noop"
 
 // awsCmd represents the generate config command for AWS etcd clusters
 var awsCmd = &cobra.Command{
@@ -27,12 +35,6 @@ var awsCmd = &cobra.Command{
 }
 
 var (
-	awsRegistrationProviders = []string{
-		"noop",
-		"route53",
-		"lb",
-	}
-
 	awsRegistrationProvider string
 	route53ZoneID           string
 	dnsHostname             string
@@ -45,11 +47,11 @@ func init() {
 	awsCmd.Flags().StringVarP(&awsRegistrationProvider, "registration-provider", "r", defaultAWSRegistrationProvider, fmt.Sprintf(
 		"automatic registration provider to use, options are: %v", awsRegistrationProviders))
 	awsCmd.Flags().StringVar(&route53ZoneID, "r53-zone-id", "",
-		"route53 zone id for automatic registration (required when -type=rouet53)")
+		"route53 zone id for automatic registration (required when --registration-provider=route53)")
 	awsCmd.Flags().StringVar(&dnsHostname, "dns-hostname", "",
-		"hostname to set when registering the etcd cluster with route53 (required when -type=rouet53)")
+		"hostname to set when registering the etcd cluster with route53 (required when --registration-provider=route53)")
 	awsCmd.Flags().StringVar(&lbTargetGroupName, "lb-target-group-name", "",
-		"loadbalancer target group name to use when registering the etcd cluster (required when: -type=lb)")
+		"loadbalancer target group name to use when registering the etcd cluster (required when: --registration-provider=lb)")
 }
 
 func aws(cmd *cobra.Command, args []string) {
@@ -75,13 +77,13 @@ func aws(cmd *cobra.Command, args []string) {
 }
 
 func initialiseAWSRegistrationProvider() provider.RegistrationProvider {
-	// default to noop registrator
+	// default to noop registration provider
 	registrationProvider := provider.NewNoopRegistrationProvider()
 	var err error
 
 	switch awsRegistrationProvider {
 	case noop.String(awsRegistrationProviders):
-		log.Debugf("Using noop cloud registration provider")
+		log.Info("Using noop cloud registration provider")
 	case route53.String(awsRegistrationProviders):
 		checkRequired(route53ZoneID, "--r53-zone-id")
 		checkRequired(dnsHostname, "--dns-hostname")
@@ -93,6 +95,8 @@ func initialiseAWSRegistrationProvider() provider.RegistrationProvider {
 		if err != nil {
 			log.Fatalf("Failed to create route53 registration client: %v", err)
 		}
+
+		log.Info("Using route53 cloud registration provider")
 	case lb.String(awsRegistrationProviders):
 		checkRequired(lbTargetGroupName, "--lb-target-group-name")
 
@@ -102,8 +106,10 @@ func initialiseAWSRegistrationProvider() provider.RegistrationProvider {
 		if err != nil {
 			log.Fatalf("Failed to create loadbalancer registration client: %v", err)
 		}
+
+		log.Info("Using loadbalancer target group cloud registration provider")
 	default:
-		log.Warnf("Unsupported registration type: %v", awsRegistrationProvider)
+		log.Fatalf("Unsupported registration type: %v", awsRegistrationProvider)
 	}
 
 	log.Debugf("Registration provider created for: %v", awsRegistrationProvider)

@@ -101,7 +101,7 @@ func findAllInstances(client *compute.Service, cfg *Config) ([]provider.Instance
 
 	var instances []provider.Instance
 	for _, zone := range zones.Items {
-		// https://provider.google.com/sdk/gcloud/reference/topic/filters
+		// https://cloud.google.com/sdk/gcloud/reference/topic/filters
 		filters := []string{
 			fmt.Sprintf("labels.environment=%s", cfg.Environment),
 			fmt.Sprintf("labels.role=%s", cfg.Role),
@@ -116,7 +116,7 @@ func findAllInstances(client *compute.Service, cfg *Config) ([]provider.Instance
 		for _, instance := range result.Items {
 			// Taking the first available network interface in case there are multiple.
 			// The networkInterface.NetworkIP will only contain private IPs:
-			// https://provider.google.com/compute/docs/reference/rest/v1/instances/list
+			// https://cloud.google.com/compute/docs/reference/rest/v1/instances/list
 			if len(instance.NetworkInterfaces) > 0 {
 				instances = append(instances, provider.Instance{
 					InstanceID: instance.Name,

@@ -14,7 +14,7 @@ import (
 type Bootstrapper interface {
 	// GenerateEtcdFlags returns a string containing the generated etcd flags.
 	GenerateEtcdFlags() (string, error)
-	// GenerateEtcdFlagsFile runs GenerateEtcdFlags and writes the output to a file.
+	// GenerateEtcdFlagsFile writes etcd flag data to a file.
 	// It's intended to be sourced in startup scripts.
 	GenerateEtcdFlagsFile(outputFilename string) error
 }
@@ -27,9 +27,10 @@ type bootstrapper struct {
 type clusterState string
 
 const (
-	// If node already exists, cluster state should be set to new
+	// If the node already exists in the cluster state (i.e. other nodes know about it) then the cluster state should
+	// retain it's original new status
 	newCluster clusterState = "new"
-	// If node is joining an existing cluster, cluster state should be set to existing
+	// If the node is joining a cluster that doesn't know about the node then the cluster state should be existing
 	existingCluster clusterState = "existing"
 )
 
@@ -45,17 +46,20 @@ func New(cloudProvider provider.Provider) (Bootstrapper, error) {
 func (b *bootstrapper) GenerateEtcdFlags() (string, error) {
 	log.Infof("Generating etcd cluster flags")
 
-	var etcdFlags string
-	if clusterDoesNotExist, err := b.clusterDoesNotExist(); err != nil {
-		return etcdFlags, err
-	} else if clusterDoesNotExist {
+	clusterExists, err := b.clusterExists()
+	if err != nil {
+		return "", err
+	}
+	if !clusterExists {
 		log.Info("No cluster found - treating as an initial node in the new cluster")
 		return b.bootstrapNewCluster(), nil
 	}
 
-	if nodeExistsInCluster, err := b.nodeExistsInCluster(); err != nil {
-		return etcdFlags, err
-	} else if nodeExistsInCluster {
+	nodeExistsInCluster, err := b.nodeExistsInCluster()
+	if err != nil {
+		return "", err
+	}
+	if nodeExistsInCluster {
 		// We treat it as a new cluster in case the cluster hasn't fully bootstrapped yet.
 		// etcd will ignore the INITIAL_* flags otherwise, so this should be safe.
 		log.Info("Node peer URL already exists - treating as an existing node in a new cluster")
@@ -63,11 +67,7 @@ func (b *bootstrapper) GenerateEtcdFlags() (string, error) {
 	}
 
 	log.Info("Node does not exist yet in cluster - joining as a new node")
-	etcdFlags, err := b.bootstrapNewNode()
-	if err != nil {
-		return etcdFlags, err
-	}
-	return etcdFlags, nil
+	return b.bootstrapNewNode()
 }
 
 func (b *bootstrapper) GenerateEtcdFlagsFile(outputFilename string) error {
@@ -79,12 +79,12 @@ func (b *bootstrapper) GenerateEtcdFlagsFile(outputFilename string) error {
 	return writeToFile(outputFilename, etcdFLags)
 }
 
-func (b *bootstrapper) clusterDoesNotExist() (bool, error) {
+func (b *bootstrapper) clusterExists() (bool, error) {
 	m, err := b.cluster.Members()
 	if err != nil {
 		return false, err
 	}
-	return len(m) == 0, nil
+	return len(m) > 0, nil
 }
 
 func (b *bootstrapper) nodeExistsInCluster() (bool, error) {
@@ -120,15 +120,13 @@ func (b *bootstrapper) getInstancePeerURLs() []string {
 }
 
 func (b *bootstrapper) bootstrapNewNode() (string, error) {
-	var etcdFlags string
-
 	err := b.reconcileMembers()
 	if err != nil {
-		return etcdFlags, err
+		return "", err
 	}
 	clusterURLs, err := b.etcdMemberPeerURLs()
 	if err != nil {
-		return etcdFlags, err
+		return "", err
 	}
 	return b.createEtcdConfig(existingCluster, clusterURLs), nil
 }

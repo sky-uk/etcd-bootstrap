@@ -30,14 +30,15 @@ var _ = Describe("Route53 Registration Provider", func() {
 	var registrationProvider Route53RegistrationProvider
 
 	BeforeEach(func() {
-		// generate instance arrays based on the test data
+		By("Generating instance arrays based on the test data")
 		var route53Instances []*route53.ResourceRecord
 		for _, testInstance := range testInstances {
 			route53Instances = append(route53Instances, &route53.ResourceRecord{
 				Value: aws.String(testInstance.PrivateIP),
 			})
 		}
-		// create dummy client responses
+
+		By("Creating dummy client responses")
 		r53Client = mock.AWSR53Client{
 			MockGetHostedZone: mock.GetHostedZone{
 				ExpectedInput: &route53.GetHostedZoneInput{

@@ -32,6 +32,6 @@ func NewNoopRegistrationProvider() RegistrationProvider {
 type noopRegistrationProvider struct{}
 
 func (n noopRegistrationProvider) Update(instances []Instance) error {
-	log.Debugf("Registration provider set to noop")
+	log.Info("Registration provider set to noop")
 	return nil
 }

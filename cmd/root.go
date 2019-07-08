@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -59,7 +60,7 @@ func initLogs() {
 }
 
 func checkRequired(value, flagName string) {
-	if value == "" {
+	if strings.TrimSpace(value) == "" {
 		log.Fatalf("The %s value is required", flagName)
 	}
 }

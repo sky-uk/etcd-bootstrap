@@ -70,8 +70,7 @@ var _ = Describe("Etcd client", func() {
 	var membersAPIClient EtcdMembersAPI
 
 	BeforeEach(func() {
-		// create dummy client with expected data
-		// this data can be manipulated within tests
+		By("Creating dummy client responses")
 		membersAPIClient = EtcdMembersAPI{
 			MockList: List{
 				ExpectedInput: context.Background(),
@@ -101,7 +100,7 @@ var _ = Describe("Etcd client", func() {
 
 	Context("Members()", func() {
 		It("can list when the etcd members api client responds with expected results", func() {
-			// create etcdCluster with a client which responds with expected values
+			By("Returning all expected responses")
 			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
 			memberList, err := etcdCluster.Members()
 			Expect(err).To(BeNil())
@@ -119,7 +118,8 @@ var _ = Describe("Etcd client", func() {
 
 		It("continues even if the etcd members api client errors on List()", func() {
 			membersAPIClient.MockList.Err = fmt.Errorf("failed to list members")
-			// create an etcdCluster which isn't able to list members
+
+			By("Return a client that isn't able to list etcd members")
 			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
 			_, err := etcdCluster.Members()
 			Expect(err).To(BeNil())
@@ -140,7 +140,8 @@ var _ = Describe("Etcd client", func() {
 					},
 				},
 			}
-			// create an etcdCluster which lists complex members
+
+			By("Returning an etcd client that returns complex members")
 			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
 			_, err := etcdCluster.Members()
 			Expect(err).ToNot(BeNil())
@@ -150,7 +151,8 @@ var _ = Describe("Etcd client", func() {
 	Context("AddMember()", func() {
 		It("can add a member when the client doesn't error", func() {
 			membersAPIClient.MockAdd.ExpectedPeerURL = "http://192.168.0.100"
-			// create etcdCluster with a client which responds with expected values
+
+			By("Returning all expected responses")
 			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.AddMember("http://192.168.0.100")).To(BeNil())
 		})
@@ -167,14 +169,16 @@ var _ = Describe("Etcd client", func() {
 				},
 			}
 			membersAPIClient.MockRemove.ExpectedMID = "test-remove-instance-id"
-			// create etcdCluster with a client which responds with expected values
+
+			By("Returning all expected responses")
 			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.RemoveMember("http://192.168.0.1:2379")).To(BeNil())
 		})
 
 		It("fails if it is unable to list members using the etcd members api client", func() {
 			membersAPIClient.MockList.Err = fmt.Errorf("failed to list members")
-			// create etcdCluster with a client which is unable to list members
+
+			By("Return a client that isn't able to list etcd members")
 			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.RemoveMember("http://192.168.0.1:2379")).ToNot(BeNil())
 		})
@@ -194,13 +198,14 @@ var _ = Describe("Etcd client", func() {
 					},
 				},
 			}
-			// create an etcdCluster which lists complex members
+
+			By("Returning an etcd client that returns complex members")
 			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.RemoveMember("http://192.168.0.1:2379")).ToNot(BeNil())
 		})
 
 		It("does nothing if the member has already been removed", func() {
-			// we can assume this has done nothin as we are accepting a blank string when Remove() is called
+			By("Expecting the Remove() call not to be made as we allow only blank PeerURL's")
 			membersAPIClient.MockList.ListOutput = []client.Member{
 				{
 					ID:         "test-other-instance-id",
@@ -209,7 +214,8 @@ var _ = Describe("Etcd client", func() {
 					ClientURLs: []string{"http://192.168.0.1:2380"},
 				},
 			}
-			// create an etcdCluster which lists members which I won't interact with
+
+			By("Returning an etcd member list containing irrelevant members")
 			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.RemoveMember("http://172.16.0.1:2379")).To(BeNil())
 		})

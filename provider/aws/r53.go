@@ -37,13 +37,13 @@ type Route53RegistrationProvider struct {
 func NewRoute53RegistrationProvider(c *Route53RegistrationProviderConfig) (provider.RegistrationProvider, error) {
 	awsSession, err := session.NewSession()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create new AWS session: %v", err)
 	}
 
 	meta := ec2metadata.New(awsSession)
 	identityDoc, err := meta.GetInstanceIdentityDocument()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get AWS local instance data: %v", err)
 	}
 	config := &aws.Config{Region: aws.String(identityDoc.Region)}
 	r53Client := route53.New(awsSession, config)

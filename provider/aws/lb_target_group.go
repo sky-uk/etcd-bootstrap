@@ -35,13 +35,13 @@ type LBTargetGroupRegistrationProvider struct {
 func NewLBTargetGroupRegistrationProvider(c *LBTargetGroupRegistrationProviderConfig) (provider.RegistrationProvider, error) {
 	awsSession, err := session.NewSession()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create new AWS session: %v", err)
 	}
 
 	meta := ec2metadata.New(awsSession)
 	identityDoc, err := meta.GetInstanceIdentityDocument()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get AWS local instance data: %v", err)
 	}
 	config := &aws.Config{Region: aws.String(identityDoc.Region)}
 	elbClient := elbv2.New(awsSession, config)
@@ -91,7 +91,7 @@ func getTargetGroupARN(targetGroups *elbv2.DescribeTargetGroupsOutput) (*string,
 	var targetGroupARN *string
 
 	if totalTargetGroups := len(targetGroups.TargetGroups); totalTargetGroups != 1 {
-		return targetGroupARN, fmt.Errorf("unexpected number of target groups found (%v)", totalTargetGroups)
+		return targetGroupARN, fmt.Errorf("unexpected number of target groups found: expected: 1, recieved: %v", totalTargetGroups)
 	}
 
 	return targetGroups.TargetGroups[0].TargetGroupArn, nil

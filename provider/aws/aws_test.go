@@ -81,7 +81,7 @@ var _ = Describe("AWS Provider", func() {
 		var awsEC2Client mock.AWSEC2Client
 
 		BeforeEach(func() {
-			// generate instance arrays based on the test data
+			By("Generating instance arrays based on the test data")
 			var nonTerminatedStates = []string{"pending", "running", "shutting-down", "stopped", "stopping"}
 			var autoscalingInstances []*autoscaling.Instance
 			var autoscalingInstanceIDs []string
@@ -96,7 +96,8 @@ var _ = Describe("AWS Provider", func() {
 					PrivateIpAddress: aws.String(testInstance.PrivateIP),
 				})
 			}
-			// create dummy client responses
+
+			By("Creating dummy client responses")
 			awsASGClient = mock.AWSASGClient{
 				MockDescribeAutoScalingInstances: mock.DescribeAutoScalingInstances{
 					ExpectedInput: &autoscaling.DescribeAutoScalingInstancesInput{

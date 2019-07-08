@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -44,13 +45,13 @@ func (a *awsMembers) GetLocalInstance() provider.Instance {
 func NewAWS() (provider.Provider, error) {
 	awsSession, err := session.NewSession()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create new AWS session: %v", err)
 	}
 
 	meta := ec2metadata.New(awsSession)
 	identityDoc, err := meta.GetInstanceIdentityDocument()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get AWS local instance data: %v", err)
 	}
 
 	config := &aws.Config{Region: aws.String(identityDoc.Region)}
@@ -115,10 +116,10 @@ func getASGName(instanceID string, a awsASG) (string, error) {
 	}
 	out, err := a.DescribeAutoScalingInstances(req)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to describe AWS ASG instances: %v", err)
 	}
 	if len(out.AutoScalingInstances) != 1 {
-		return "", fmt.Errorf("this instance doesn't appear to be part of an autoscaling group")
+		return "", errors.New("this instance doesn't appear to be part of an autoscaling group")
 	}
 	return *out.AutoScalingInstances[0].AutoScalingGroupName, nil
 }
@@ -130,7 +131,7 @@ func getASGInstanceIDs(asgName string, awsASG awsASG) ([]string, error) {
 	out, err := awsASG.DescribeAutoScalingGroups(req)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to describe AWS ASG groups: %v", err)
 	}
 	if len(out.AutoScalingGroups) != 1 {
 		return nil, fmt.Errorf("expected a single autoscaling group for %s, but found %d", asgName,

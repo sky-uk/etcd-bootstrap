@@ -29,14 +29,15 @@ var _ = Describe("Loadbalancer Target Group Registration Provider", func() {
 	var registrationProvider LBTargetGroupRegistrationProvider
 
 	BeforeEach(func() {
-		// generate instance arrays based on the test data
+		By("Generating instance arrays based on the test data")
 		var elbInstances []*elbv2.TargetDescription
 		for _, testInstance := range testInstances {
 			elbInstances = append(elbInstances, &elbv2.TargetDescription{
 				Id: aws.String(testInstance.InstanceID),
 			})
 		}
-		// create dummy client responses
+
+		By("Creating dummy client responses")
 		elbClient = mock.AWSELBClient{
 			MockDescribeTargetGroups: mock.DescribeTargetGroups{
 				ExpectedInput: &elbv2.DescribeTargetGroupsInput{
