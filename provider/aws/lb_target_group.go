@@ -91,7 +91,7 @@ func getTargetGroupARN(targetGroups *elbv2.DescribeTargetGroupsOutput) (*string,
 	var targetGroupARN *string
 
 	if totalTargetGroups := len(targetGroups.TargetGroups); totalTargetGroups != 1 {
-		return targetGroupARN, fmt.Errorf("unexpected number of target groups found: expected: 1, recieved: %v", totalTargetGroups)
+		return targetGroupARN, fmt.Errorf("unexpected number of target groups found: expected: 1, received: %v", totalTargetGroups)
 	}
 
 	return targetGroups.TargetGroups[0].TargetGroupArn, nil

@@ -178,7 +178,7 @@ var _ = Describe("Etcd client", func() {
 		It("fails if it is unable to list members using the etcd members api client", func() {
 			membersAPIClient.MockList.Err = fmt.Errorf("failed to list members")
 
-			By("Return a client that isn't able to list etcd members")
+			By("Returning a client that isn't able to list etcd members")
 			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.RemoveMember("http://192.168.0.1:2379")).ToNot(BeNil())
 		})
