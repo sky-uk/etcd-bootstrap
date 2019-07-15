@@ -2,10 +2,11 @@
 
 # etcd-bootstrap
 
-Bootstrap etcd nodes in the cloud. `etcd-bootstrap` takes care of setting up etcd
-to automatically join existing clusters and create new ones if necessary.
+Bootstrap etcd nodes for cloud and vmware. `etcd-bootstrap` takes care of setting up etcd to automatically generate
+configuration and optionally register the cluster with a provider. It is intended to be used as an initialisation tool
+which is run before starting an etcd instance (e.g. kubernetes init-containers).
 
-It's intended for use with etcd and one of:
+It currently supports use with etcd and one of:
   * An AWS Auto Scaling group; or
   * A vSphere server; or
   * A GCP Managed Instance group
@@ -14,87 +15,29 @@ The provider type used is determined by the parameter passed after `etcd-bootstr
 running `./etcd-boostrap -h`. Once you have selected a provider to use, you can list the various flags supported by
 running `./etcd-bootsrap <provider> -h`.
 
-## cloud-etcd container
-
-etcd2 container that bootstraps in the cloud. Run it the same as the etcd container:
-
-    docker run skycirrus/cloud-etcd-v2.3.8:1.2.0 -h # lists all the etcd options
-
-You can pass in any flag that etcd takes normally.
-
-
-Alternatively, cloud-etcd may be used to generate a startup script for etcd only, which may then be used with this
-image, or v3+ images.
-
-    docker run -v BOOTSTRAP_DIR:/bootstrap --entrypoint=/bootstrap.sh skycirrus/cloud-etcd-v2.3.8:1.2.0 -h # lists all the etcd-bootstrap options
-
-And then to run etcd v2 using this image:
-
-    docker run -v BOOTSTRAP_DIR:/bootstrap --entrypoint=/bootstrap/etcd.sh skycirrus/cloud-etcd-v2.3.8:1.2.0 -h # lists all the etcd options
-    
-Or for etcd v3+ using the coreos image:
-
-    docker run -v BOOTSTRAP_DIR:/bootstrap --entrypoint=/bootstrap/etcd.sh quay.io/coreos/etcd:v3.2 -h # lists all the etcd options 
-
-The startup script is generated and placed into the volume mounted bootstrap directory. This must be mounted into the
-container which will run etcd, and the entrypoint must be changed to the generated script. The location of this
-bootstrap directory may be customised by using `-e BOOTSTRAP_DIR=[NEW LOCATION]`.
-
 ### AWS
 
-The wrapper will take care of setting all the required flags to create or join an existing
-etcd cluster, based on the ASG the local instance is on.
+When using the AWS provider, by default etcd-bootstrap will get information about the instance it is running on (must
+be running on an AWS EC2 instance and be part of one AWS autoscaling group). It will discover the autoscaling group the
+node is part of and then discover all other instances within that group. From this information, configuration will be
+generated to either join or create a new etcd cluster based on the etcd cluster state.
 
-To pass flags to etcd-bootstrap, set the `ETCD_BOOTSTRAP_FLAGS` environment variable.
+#### Provider Flags:
 
-    docker run -e ETCD_BOOTSTRAP_FLAGS='-cloud aws -registration-type dns -route53-zone-id MY_ZONE_ID -domain-name etcd' skycirrus/cloud-etcd-v2.3.8:1.1.0
+| Flag | Default | Comment |
+| ---- | -------- | ------- |
+| `--registration-provider` | `noop` | select the registration provider to use (either: dns, lb or noop) |
+| `--r53-zone-id` | `n/a` | the zone to use when using the dns registration provider |
+| `--dns-hostname` | `n/a` | the dns hostname to use when using the dns registration provider |
+| `--lb-target-group-name` | `n/a` | the aws loadbalancer target group name when using the lb registration provider |
 
-### GCP
+#### Registration Providers
 
-The wrapper will take care of setting all the required flags to create or join an existing
-etcd cluster, based on the flags provided.
+##### Route53
 
-To pass flags to etcd-bootstrap, set the `ETCD_BOOTSTRAP_FLAGS` environment variable.
-
-    docker run -e ETCD_BOOTSTRAP_FLAGS='-cloud gcp -gcp-project-id MY_PROJECT_ID -gcp-environment MY_ENV -gcp-role ETCD_ROLE etcd' skycirrus/cloud-etcd-v2.3.8:1.1.0
-
-## vmware-etcd container
-
-On top of the functionality provided by the cloud-etcd container, the vmware-etcd container has support to read
-credentials from a user specified file.
-
-To use this feature, set the `VMWARE_CREDENTIALS` environment variable with reference to the location of the file that
-contains your credentials. e.g.
-
-```bash
-VMWARE_USERNAME=myusername
-VMWARE_PASSWORD=supersecret
-```
-
-If the `VMWARE_CREDENTIALS` environment variable is then set, the wrapper script will then source this file and then
-append the appropriate flags to `ETCD_BOOTSTRAP_FLAGS`.
-
-    docker run -e VMWARE_CREDENTIALS='/etc/vmware-credentials' \
-               -e ETCD_BOOTSTRAP_FLAGS='-cloud vmware ...' \
-               skycirrus/vmware-etcd-v2.3.8:1.2.0
-
-## Command usage
-
-Create instances inside of an ASG, vSphere, or GCP. Then run:
-
-    ./etcd-bootstrap -o /var/run/bootstrap.conf
-    source /var/run/bootstrap.conf
-    ./etcd
-
-This will:
-
-1. Query the relevant API for all the instance IPs.
-2. Determine if joining an existing cluster or not, by querying all instances
-   to see if etcd is available.
-3. Create `ETCD_*` environment variables to correctly bootstrap with all the
-   other instances.
-
-### Updating a Route53 domain name for the etcd cluster members
+If running etcd bootstrap with `-registration-type=dns` this will create a route53 record containing all etcd instance
+ip addresses as A records. It will create it in the zone supplied using `-route53-zone-id` and the domain supplied by 
+`-domain-name` (both flags are required when using this registration type).
 
 Optionally etcd-bootstrap can also register all the IPs in the autoscaling group with a domain name.
 
@@ -103,29 +46,55 @@ Optionally etcd-bootstrap can also register all the IPs in the autoscaling group
 If zone `MYZONEID` has domain name `example.com`, this will update the domain name `etcd.example.com` with all
 of the IPs. This lets clients use round robin DNS for connecting to the cluster.
 
-`-route53-zone-id` is **not supported** when using `-cloud (vmware|gcp)`.
-
-## Cloud-specific notes
-
-### AWS
-
-AWS nodes must be created in an ASG of which the node on which the container runs must be a part.
-
-### Registration types
-
-AWS supports both `dns` and `lb` registration types.
-
-##### dns
-
-If running etcd bootstrap with `-registration-type=dns` this will create a route53 record containing all etcd instance
-ip addresses as A records. It will create it in the zone supplied using `-route53-zone-id` and the domain supplied by 
-`-domain-name` (both flags are required when using this registration type).
-
-##### lb
+##### AWS Loadbalancer Target Group
 
 If running etcd bootsrap with `-registration-type=lb` this will attempt to register all etcd instances with an AWS
 loadbalancer target group with the name supplied by `-aws-lb-target-group` (flag is required when using this
 registration type).
+
+##### Example Kubernetes Pod:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: etcd
+spec:
+  initContainers:
+  - name: etcd-bootstrap
+    image: skycirrus/etcd-boostrap:v2.0.0
+    args:
+    - --registration-provider=lb
+    - --lb-target-group-name=my-aws-target-group
+  containers:
+  - name: etcd
+    image: quay.io/coreos/etcd:v3.1.12
+    args:
+    - --data-dir {{ etcd_cluster_data }}
+    - --heartbeat-interval 200
+    - --election-timeout 2000
+    livenessProbe:
+      tcpSocket:
+        port: clientport
+      initialDelaySeconds: 15
+      timeoutSeconds: 15
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: clientport
+        scheme: HTTP
+      initialDelaySeconds: 15
+      timeoutSeconds: 15
+    ports:
+    - containerPort: 2380
+      hostPort: 2380
+      name: peerport
+      protocol: TCP
+    - containerPort: 2379
+      hostPort: 2379
+      name: clientport
+      protocol: TCP
+```
 
 #### IAM role
 
@@ -192,28 +161,48 @@ Instances must have one of the following IAM policy rules:
 
 ```
 
-### VMWare
-
-The VMWare mode requires configuring with connectivity information to the vSphere VCenter API.  See usage help for
-required arguments.  In addition to connectivity, the VMWare mode requires two further options:
-
- * `vmware-environment` - the environment to filter
- * `vmware-role` - the role to filter
-
-In order for the environment and role filters to work, the VMs must have been provisioned with extra configuration
-parameters named "tags_environment" and "tags_role" set to the values provided on the command line.
-
 ### GCP
 
-GCP nodes must be created in an MIG of which the node on which the container runs must be a part.
-The GCP cloud mode requires additional options:
+#### Provider Flags:
 
- * `gcp-project-id` - the name of the project to query
- * `gcp-environment` - the name of the environment to filter
- * `gcp-role` - the role to filter
+| Flag | Default | Comment |
+| ---- | -------- | ------- |
+| `--project-id` | `n/a` | the name of the project to query |
+| `--environment` | `n/a` | the name of the environment to filter |
+| `--role` | `n/a` | the role to filter |
 
-In order for the role filters to work, the VMs must have been provisioned with extra configuration
-labels named "environment" and "role" set to the values provided on the command line.
+#### Notes
+
+GCP nodes must be created in an MIG of which the node on which the container runs must be a part. In order for the role
+filters to work, the VMs must have been provisioned with extra configuration labels named "environment" and "role" set
+to the values provided on the command line.
 
 In case a node has multiple Network Interfaces, the GCP bootstrapper will take the
 private ip of the first available one.
+
+### VMWare
+
+#### Provider Flags:
+
+| Flag | Default | Comment |
+| ---- | -------- | ------- |
+| `--vsphere-username` | `n/a` | username for vSphere API |
+| `--vsphere-host` | `n/a` | host address for vSphere API |
+| `--vsphere-port` | `443` | port for vSphere API |
+| `--insecure-skip-verify` | `false` | skip SSL verification when communicating with the vSphere host |
+| `--max-api-attempts` | `3` | number of attempts to make against the vSphere SOAP API (in case of temporary failure) |
+| `--vm-name` | `n/a` | node name in vSphere of this VM |
+| `--environment` | `n/a` | value of the 'tags_environment' extra configuration option in vSphere to filter nodes by |
+| `--role` | `n/a` | value of the 'tags_role' extra configuration option in vSphere to filter nodes by |
+
+#### Provider Environment Variables:
+
+| ENV | Default | Comment |
+| ---- | -------- | ------- |
+| `VSPHERE_PASSWORD` | `n/a` | password for vSphere API |
+
+#### Notes
+
+The VMWare mode requires configuring with connectivity information to the vSphere VCenter API.  See usage help for
+required arguments. In order for the environment and role filters to work, the VMs must have been provisioned with extra
+configuration parameters named "tags_environment" and "tags_role" set to the values provided on the command line.
