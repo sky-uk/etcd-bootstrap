@@ -1,5 +1,6 @@
 pkgs := $(shell go list ./... | grep -v /vendor/)
 files := $(shell find . -path ./vendor -prune -o -name '*.go' -print)
+image := skycirrus/etcd-boostrap
 
 git_rev := $(shell git rev-parse --short HEAD)
 git_tag := $(shell git tag --points-at=$(git_rev))
@@ -8,7 +9,7 @@ latest_git_tag := $(shell git for-each-ref --format="%(tag)" --sort=-taggerdate 
 latest_git_rev := $(shell git rev-list --abbrev-commit -n 1 $(latest_git_tag))
 version := $(if $(git_tag),$(git_tag),dev-$(git_rev))
 build_time := $(shell date -u)
-ldflags := -X "github.com/sky-uk/osprey/cmd.version=$(version)" -X "github.com/sky-uk/osprey/cmd.buildTime=$(build_time)"
+ldflags := -X "github.com/sky-uk/etcd-bootstrap/cmd.version=$(version)" -X "github.com/sky-uk/etcd-bootstrap/cmd.buildTime=$(build_time)"
 
 .PHONY: all format test build setup vet lint check-format check docker release
 
@@ -58,20 +59,9 @@ test :
 	@echo "== run tests"
 	@go test -race $(pkgs)
 
-etcd_version := v2.3.8
-cloud_image := skycirrus/cloud-etcd-$(etcd_version)
-vmware_image := skycirrus/vmware-etcd-$(etcd_version)
-
 docker : build
-	@echo "== build cloud"
-	cp etcd-bootstrap cloud-etcd/
-	docker build -t $(cloud_image):latest cloud-etcd/
-	rm -f cloud-etcd/etcd-bootstrap
-
-	@echo "== build vmware"
-	cp etcd-bootstrap vmware-etcd/
-	docker build -t $(vmware_image):latest vmware-etcd
-	rm -f vmware-etcd/etcd-bootstrap
+	@echo "== build docker image"
+	docker build -t $(image):latest .
 
 release : docker
 	@echo "== release"
@@ -81,19 +71,11 @@ else
     @echo "logging into dockerhub"
     @docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)
 
-	@echo "releasing $(cloud_image):$(git_tag)"
-	docker tag $(cloud_image):latest $(cloud_image):$(git_tag)
-	docker push $(cloud_image):$(git_tag)
+	@echo "releasing $(image):$(git_tag)"
+	docker tag $(image):latest $(image):$(git_tag)
+	docker push $(image):$(git_tag)
 	@if [ "$(git_rev)" = "$(latest_git_rev)" ]; then \
-        echo "updating $(cloud_image) latest image"; \
-        echo docker push $(cloud_image):latest ; \
-    fi;
-
-	@echo "releasing $(vmware_image):$(git_tag)"
-	docker tag $(vmware_image):latest $(vmware_image):$(git_tag)
-	docker push $(vmware_image):$(git_tag)
-	@if [ "$(git_rev)" = "$(latest_git_rev)" ]; then \
-        echo "updating $(vmware_image) latest image"; \
-        echo docker push $(vmware_image):latest ; \
+        echo "updating $(image) latest image"; \
+        echo docker push $(image):latest ; \
     fi;
 endif
