@@ -59,8 +59,14 @@ func initLogs() {
 	}
 }
 
-func checkRequired(value, flagName string) {
+func checkRequiredFlag(value, flagName string) {
 	if strings.TrimSpace(value) == "" {
-		log.Fatalf("The %s value is required", flagName)
+		log.Fatalf("The %s flag is required", flagName)
+	}
+}
+
+func checkRequiredEnvironmentVariable(value, envName string) {
+	if strings.TrimSpace(value) == "" {
+		log.Fatalf("The %s environment variable is required", envName)
 	}
 }

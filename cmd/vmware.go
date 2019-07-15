@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/sky-uk/etcd-bootstrap/bootstrap"
 	vmware_provider "github.com/sky-uk/etcd-bootstrap/provider/vmware"
@@ -11,6 +13,8 @@ const (
 	defaultVMWarePort               = 443
 	defaultVMwareInsecureSkipVerify = false
 	defaultVMwareAttempts           = 3
+
+	vmwarePasswordEnvironmentVariable = "VSPHERE_PASSWORD"
 )
 
 // vmwareCmd represents the generate config command for VMware etcd clusters
@@ -39,8 +43,6 @@ func init() {
 	// vmware flags
 	vmwareCmd.Flags().StringVar(&vmwareUsername, "vsphere-username", "",
 		"username for vSphere API")
-	vmwareCmd.Flags().StringVar(&vmwarePassword, "vsphere-password", "",
-		"plaintext password for vSphere API")
 	vmwareCmd.Flags().StringVar(&vmwareHost, "vsphere-host", "",
 		"host address for vSphere API")
 	vmwareCmd.Flags().UintVar(&vmwarePort, "vsphere-port", defaultVMWarePort,
@@ -55,6 +57,9 @@ func init() {
 		"value of the 'tags_environment' extra configuration option in vSphere to filter nodes by")
 	vmwareCmd.Flags().StringVar(&vmwareRole, "role", "",
 		"value of the 'tags_role' extra configuration option in vSphere to filter nodes by")
+
+	// vmware environment variables
+	vmwarePassword = os.Getenv(vmwarePasswordEnvironmentVariable)
 }
 
 func vmware(cmd *cobra.Command, args []string) {
@@ -84,10 +89,10 @@ func vmware(cmd *cobra.Command, args []string) {
 }
 
 func checkVMwareParams(cmd *cobra.Command, args []string) {
-	checkRequired(vmwareUsername, "--vsphere-username")
-	checkRequired(vmwarePassword, "--vsphere-password")
-	checkRequired(vmwareHost, "--vsphere-host")
-	checkRequired(vmwareVMName, "--vm-name")
-	checkRequired(vmwareEnvironment, "--environment")
-	checkRequired(vmwareRole, "--role")
+	checkRequiredFlag(vmwareUsername, "--vsphere-username")
+	checkRequiredFlag(vmwareHost, "--vsphere-host")
+	checkRequiredFlag(vmwareVMName, "--vm-name")
+	checkRequiredFlag(vmwareEnvironment, "--environment")
+	checkRequiredFlag(vmwareRole, "--role")
+	checkRequiredEnvironmentVariable(vmwarePassword, vmwarePasswordEnvironmentVariable)
 }

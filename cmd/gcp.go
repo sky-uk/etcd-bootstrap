@@ -53,7 +53,7 @@ func gcp(cmd *cobra.Command, args []string) {
 }
 
 func checkGCPParams(cmd *cobra.Command, args []string) {
-	checkRequired(gcpProjectID, "--project-id")
-	checkRequired(gcpEnvironment, "--environment")
-	checkRequired(gcpRole, "--role")
+	checkRequiredFlag(gcpProjectID, "--project-id")
+	checkRequiredFlag(gcpEnvironment, "--environment")
+	checkRequiredFlag(gcpRole, "--role")
 }

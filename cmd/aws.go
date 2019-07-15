@@ -85,8 +85,8 @@ func initialiseAWSRegistrationProvider() provider.RegistrationProvider {
 	case noop.String(awsRegistrationProviders):
 		log.Info("Using noop cloud registration provider")
 	case route53.String(awsRegistrationProviders):
-		checkRequired(route53ZoneID, "--r53-zone-id")
-		checkRequired(dnsHostname, "--dns-hostname")
+		checkRequiredFlag(route53ZoneID, "--r53-zone-id")
+		checkRequiredFlag(dnsHostname, "--dns-hostname")
 
 		registrationProvider, err = aws_provider.NewRoute53RegistrationProvider(&aws_provider.Route53RegistrationProviderConfig{
 			ZoneID:   route53ZoneID,
@@ -98,7 +98,7 @@ func initialiseAWSRegistrationProvider() provider.RegistrationProvider {
 
 		log.Info("Using route53 cloud registration provider")
 	case lb.String(awsRegistrationProviders):
-		checkRequired(lbTargetGroupName, "--lb-target-group-name")
+		checkRequiredFlag(lbTargetGroupName, "--lb-target-group-name")
 
 		registrationProvider, err = aws_provider.NewLBTargetGroupRegistrationProvider(&aws_provider.LBTargetGroupRegistrationProviderConfig{
 			TargetGroupName: lbTargetGroupName,
