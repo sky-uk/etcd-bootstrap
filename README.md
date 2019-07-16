@@ -63,9 +63,16 @@ spec:
   initContainers:
   - name: etcd-bootstrap
     image: skycirrus/etcd-boostrap:v2.0.0
+    command:
+    - /bootstrap.sh
     args:
+    - aws
     - --registration-provider=lb
     - --lb-target-group-name=my-aws-target-group
+    volumeMounts:
+     # required to be able to share the etcd-bootstrap ENV variables with the etcd container
+    - mountPath: /bootstrap
+      name: bootstrap
   containers:
   - name: etcd
     image: quay.io/coreos/etcd:v3.1.12
@@ -73,6 +80,10 @@ spec:
     - --data-dir {{ etcd_cluster_data }}
     - --heartbeat-interval 200
     - --election-timeout 2000
+    volumeMounts:
+    # required to be able to source the etcd-bootstrap ENV variables
+    - mountPath: /bootstrap
+      name: bootstrap
     livenessProbe:
       tcpSocket:
         port: clientport
