@@ -47,7 +47,7 @@ func gcp(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to create etcd bootstrapper: %v", err)
 	}
 
-	if err := bootstrapper.GenerateEtcdFlagsFile(outputFileName); err != nil {
+	if err := bootstrapper.GenerateEtcdFlagsFile(outputFilename); err != nil {
 		log.Fatalf("Failed to generate etcd flags file: %v", err)
 	}
 }

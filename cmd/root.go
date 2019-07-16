@@ -35,13 +35,13 @@ var RootCmd = &cobra.Command{
 }
 
 var (
-	debugLogging bool
 	// injected by "go tool link -X"
 	version string
 	// injected by "go tool link -X"
 	buildTime string
 
-	outputFileName string
+	debugLogging   bool
+	outputFilename string
 )
 
 func init() {
@@ -49,7 +49,7 @@ func init() {
 	RootCmd.Version = fmt.Sprintf("%s (%s)", version, buildTime)
 	RootCmd.PersistentFlags().BoolVarP(&debugLogging, "debug", "X", false,
 		"enable debug logging")
-	RootCmd.PersistentFlags().StringVarP(&outputFileName, "output-file", "o", defaultOutputFilename,
+	RootCmd.PersistentFlags().StringVarP(&outputFilename, "output-file", "o", defaultOutputFilename,
 		"location to write environment variables for etcd to use")
 }
 
