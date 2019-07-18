@@ -12,7 +12,7 @@ It currently supports use with etcd and one of:
   * A GCP Managed Instance group
 
 The provider type used is determined by the parameter passed after `etcd-bootstrap` and the options can be listed by
-running `./etcd-boostrap -h`. Once you have selected a provider to use, you can list the various flags supported by
+running `./etcd-bootstrap -h`. Once you have selected a provider to use, you can list the various flags supported by
 running `./etcd-bootsrap <provider> -h`.
 
 ### AWS
@@ -33,23 +33,23 @@ generated to either join or create a new etcd cluster based on the etcd cluster 
 
 #### Registration Providers
 
-##### Route53
+##### dns: Route53
 
-If running etcd bootstrap with `-registration-type=dns` this will create a route53 record containing all etcd instance
-ip addresses as A records. It will create it in the zone supplied using `-route53-zone-id` and the domain supplied by 
-`-domain-name` (both flags are required when using this registration type).
+If running etcd bootstrap with `--registration-provider=dns` this will create a route53 record containing all etcd instance
+ip addresses as A records. It will create it in the zone supplied using `--r53-zone-id=` and the domain supplied by 
+`--dns-hostname` (both flags are required when using this registration type).
 
 Optionally etcd-bootstrap can also register all the IPs in the autoscaling group with a domain name.
 
-    ./etcd-bootstrap -o /var/run/bootstrap.conf -cloud aws -registration-type dns -route53-zone-id MYZONEID -domain-name etcd
+    ./etcd-bootstrap -o=/var/run/bootstrap.conf aws --registration-provider=dns --r53-zone-id=MYZONEID --dns-hostname=etcd
 
 If zone `MYZONEID` has domain name `example.com`, this will update the domain name `etcd.example.com` with all
 of the IPs. This lets clients use round robin DNS for connecting to the cluster.
 
-##### AWS Loadbalancer Target Group
+##### lb: AWS Loadbalancer Target Group
 
-If running etcd bootsrap with `-registration-type=lb` this will attempt to register all etcd instances with an AWS
-loadbalancer target group with the name supplied by `-aws-lb-target-group` (flag is required when using this
+If running etcd bootsrap with `--registration-provider=lb` this will attempt to register all etcd instances with an AWS
+loadbalancer target group with the name supplied by `--lb-target-group-name` (flag is required when using this
 registration type).
 
 ##### Example Kubernetes Pod:
@@ -62,7 +62,7 @@ metadata:
 spec:
   initContainers:
   - name: etcd-bootstrap
-    image: skycirrus/etcd-boostrap:v2.0.0
+    image: skycirrus/etcd-bootstrap:v2.0.0
     command:
     - /bootstrap.sh
     args:
