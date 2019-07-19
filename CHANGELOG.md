@@ -9,7 +9,7 @@ Release v2.0.0 contains a substantial refactor of etcd-bootstrap including:
 * Support mocking for the etcd member client in better test code coverage
 * More extensive testing for both the bootstrap and AWS packages
 * Replace vendor packages with go modules
-* Versioned binaries (can be printed using `./etcd-boostrap --version`)
+* Versioned binaries (can be printed using `./etcd-bootstrap --version`)
 
 Additional functionality:
 * Support loadbalancer registration (cannot be used with the DNS registration) which after generating the cluster

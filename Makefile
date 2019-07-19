@@ -1,6 +1,6 @@
 pkgs := $(shell go list ./... | grep -v /vendor/)
 files := $(shell find . -path ./vendor -prune -o -name '*.go' -print)
-image := skycirrus/etcd-boostrap
+image := skycirrus/etcd-bootstrap
 
 git_rev := $(shell git rev-parse --short HEAD)
 git_tag := $(shell git tag --points-at=$(git_rev))

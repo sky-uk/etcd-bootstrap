@@ -167,7 +167,7 @@ func (t EtcdCluster) AddMember(peerURL string) error {
 	return t.MockAddMember.Err
 }
 
-// CloudProvider for mocking calls to an etcd-boostrap cloud provider
+// CloudProvider for mocking calls to an etcd-bootstrap cloud provider
 type CloudProvider struct {
 	MockGetInstances     GetInstances
 	MockGetLocalInstance GetLocalInstance
@@ -178,7 +178,7 @@ type GetInstances struct {
 	GetInstancesOutput []provider.Instance
 }
 
-// GetInstances mocks the etcd-boostrap cloud provider
+// GetInstances mocks the etcd-bootstrap cloud provider
 func (t CloudProvider) GetInstances() []provider.Instance {
 	return t.MockGetInstances.GetInstancesOutput
 }
@@ -188,7 +188,7 @@ type GetLocalInstance struct {
 	GetLocalInstance provider.Instance
 }
 
-// GetLocalInstance mocks the etcd-boostrap cloud provider
+// GetLocalInstance mocks the etcd-bootstrap cloud provider
 func (t CloudProvider) GetLocalInstance() provider.Instance {
 	return t.MockGetLocalInstance.GetLocalInstance
 }

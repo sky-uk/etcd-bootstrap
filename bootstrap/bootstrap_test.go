@@ -23,8 +23,8 @@ var (
 	localClientURL = fmt.Sprintf("http://%v:2379", localPrivateIP)
 )
 
-// TestBoostrap to register the test suite
-func TestBoostrap(t *testing.T) {
+// TestBootstrap to register the test suite
+func TestBootstrap(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Bootstrap")
 }
