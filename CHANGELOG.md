@@ -1,3 +1,21 @@
+# v2.0.0
+
+**If upgrading from an older version of etcd-bootstrap this is a breaking change. Please refer to the docs on which command
+line arguments are required**
+
+Release v2.0.0 contains a substantial refactor of etcd-bootstrap including:
+* Using cobra for command line arguments
+* Split out provider from bootstrap logic to allow for better code segregation
+* Support mocking for the etcd member client in better test code coverage
+* More extensive testing for both the bootstrap and AWS packages
+* Replace vendor packages with go modules
+* Versioned binaries (can be printed using `./etcd-bootstrap --version`)
+
+Additional functionality:
+* Support loadbalancer registration (cannot be used with the DNS registration) which after generating the cluster
+    config, adds the etcd instances to a loadbalancer target group if supported by the cloud provider
+    (can only be used with the AWS provider).
+
 # v1.2.1
 
 * Update alpine image to fix CVE-2019-5021.
