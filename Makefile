@@ -64,18 +64,16 @@ docker : build
 	docker build -t $(image):latest .
 
 release : docker
-	@echo "== release"
 ifeq ($(strip $(git_tag)),)
-	@echo "no tag on $(git_rev), skipping release"
+	@echo "no tag on $(git_rev), skipping docker release"
 else
-    @echo "logging into dockerhub"
-    @docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)
-
+	@echo "== release docker"
 	@echo "releasing $(image):$(git_tag)"
+	@docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)
 	docker tag $(image):latest $(image):$(git_tag)
 	docker push $(image):$(git_tag)
 	@if [ "$(git_rev)" = "$(latest_git_rev)" ]; then \
-        echo "updating $(image) latest image"; \
-        echo docker push $(image):latest ; \
-    fi;
+		echo "updating latest image"; \
+		echo docker push $(image):latest ; \
+	fi;
 endif
