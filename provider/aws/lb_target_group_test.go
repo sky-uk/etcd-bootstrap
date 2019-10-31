@@ -33,7 +33,7 @@ var _ = Describe("Loadbalancer Target Group Registration Provider", func() {
 		var elbInstances []*elbv2.TargetDescription
 		for _, testInstance := range testInstances {
 			elbInstances = append(elbInstances, &elbv2.TargetDescription{
-				Id: aws.String(testInstance.InstanceID),
+				Id: aws.String(testInstance.PrivateIP),
 			})
 		}
 
