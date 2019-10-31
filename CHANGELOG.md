@@ -1,3 +1,14 @@
+# v2.1.0
+
+* Register with Target Group by IP address instead of instance ID
+
+  When using `--registration-provider=lb`, rather than adding the
+  instance ID to the target group it will instead use the instance's
+  private IP address. This gets around the issue of asymmetric routing when
+  trying to load-balance to its own address.
+
+  See https://aws.amazon.com/premiumsupport/knowledge-center/target-connection-fails-load-balancer/
+
 # v2.0.0
 
 **If upgrading from an older version of etcd-bootstrap this is a breaking change. Please refer to the docs on which command
