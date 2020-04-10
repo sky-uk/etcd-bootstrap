@@ -73,12 +73,9 @@ func (r Route53RegistrationProvider) Update(instances []provider.Instance) error
 
 	for index, instance := range instances {
 		resourceRecords = append(resourceRecords, &route53.ResourceRecord{Value: aws.String(instance.PrivateIP)})
-		log.Infof("Debug private ip %s ", *aws.String(instance.PrivateIP))
 		var singleResourceRecords = []*route53.ResourceRecord{&route53.ResourceRecord{Value: aws.String(instance.PrivateIP)}}
-		log.Infof("Debug record %v ", singleResourceRecords)
 		if r.recordPerMember {
 			singleDomainName := r.hostname + "-" + strconv.Itoa(index) + "." + *zone.HostedZone.Name
-			log.Infof("Debug single domain name %s ", singleDomainName)
 			err := r.createARecord(zone, singleDomainName, singleResourceRecords)
 			if err != nil {
 				return err
