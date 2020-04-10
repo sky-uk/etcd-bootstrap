@@ -39,6 +39,7 @@ var (
 	route53ZoneID           string
 	dnsHostname             string
 	lbTargetGroupName       string
+	recordPerMember         bool
 )
 
 func init() {
@@ -52,6 +53,8 @@ func init() {
 		"hostname to set when registering the etcd cluster with route53 (required when --registration-provider=route53)")
 	awsCmd.Flags().StringVar(&lbTargetGroupName, "lb-target-group-name", "",
 		"loadbalancer target group name to use when registering the etcd cluster (required when: --registration-provider=lb)")
+	awsCmd.Flags().BoolVar(&recordPerMember, "record-per-member", false,
+		"record per member if true will create a record per member ")
 }
 
 func aws(cmd *cobra.Command, args []string) {
@@ -89,8 +92,9 @@ func initialiseAWSRegistrationProvider() provider.RegistrationProvider {
 		checkRequiredFlag(dnsHostname, "--dns-hostname")
 
 		registrationProvider, err = aws_provider.NewRoute53RegistrationProvider(&aws_provider.Route53RegistrationProviderConfig{
-			ZoneID:   route53ZoneID,
-			Hostname: dnsHostname,
+			ZoneID:          route53ZoneID,
+			Hostname:        dnsHostname,
+			RecordPerMember: recordPerMember,
 		})
 		if err != nil {
 			log.Fatalf("Failed to create route53 registration client: %v", err)

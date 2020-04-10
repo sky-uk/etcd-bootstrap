@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
@@ -13,8 +14,9 @@ import (
 
 // Route53RegistrationProviderConfig contains configuration when creating a default Route53RegistrationProvider
 type Route53RegistrationProviderConfig struct {
-	ZoneID   string
-	Hostname string
+	ZoneID          string
+	Hostname        string
+	RecordPerMember bool
 }
 
 // r53 interface to abstract away from AWS commands
@@ -28,9 +30,10 @@ type r53 interface {
 // Route53RegistrationProvider contains an aws route53 client and information about the desired hosted zone the user
 // wants to update
 type Route53RegistrationProvider struct {
-	zoneID   string
-	hostname string
-	r53      r53
+	zoneID          string
+	hostname        string
+	r53             r53
+	recordPerMember bool
 }
 
 // NewRoute53RegistrationProvider returns a default Route53RegistrationProvider and initiates an new aws route53 client
@@ -49,9 +52,10 @@ func NewRoute53RegistrationProvider(c *Route53RegistrationProviderConfig) (provi
 	r53Client := route53.New(awsSession, config)
 
 	return Route53RegistrationProvider{
-		zoneID:   c.ZoneID,
-		hostname: c.Hostname,
-		r53:      r53Client,
+		zoneID:          c.ZoneID,
+		hostname:        c.Hostname,
+		r53:             r53Client,
+		recordPerMember: c.RecordPerMember,
 	}, nil
 }
 
@@ -66,17 +70,38 @@ func (r Route53RegistrationProvider) Update(instances []provider.Instance) error
 	fqdn := r.hostname + "." + *zone.HostedZone.Name
 
 	var resourceRecords []*route53.ResourceRecord
-	for _, instance := range instances {
+
+	for index, instance := range instances {
 		resourceRecords = append(resourceRecords, &route53.ResourceRecord{Value: aws.String(instance.PrivateIP)})
+		log.Infof("Debug private ip %s ", *aws.String(instance.PrivateIP))
+		var singleResourceRecords = []*route53.ResourceRecord{&route53.ResourceRecord{Value: aws.String(instance.PrivateIP)}}
+		log.Infof("Debug record %v ", singleResourceRecords)
+		if r.recordPerMember {
+			singleDomainName := r.hostname + "-" + strconv.Itoa(index) + "." + *zone.HostedZone.Name
+			log.Infof("Debug single domain name %s ", singleDomainName)
+			err := r.createARecord(zone, singleDomainName, singleResourceRecords)
+			if err != nil {
+				return err
+			}
+		}
 	}
+
+	err = r.createARecord(zone, fqdn, resourceRecords)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r Route53RegistrationProvider) createARecord(zone *route53.GetHostedZoneOutput, fqdn string, resourceRecords []*route53.ResourceRecord) error {
 
 	change := &route53.Change{
 		Action: aws.String(route53.ChangeActionUpsert),
 		ResourceRecordSet: &route53.ResourceRecordSet{
-			Name: aws.String(fqdn),
-			Type: aws.String(route53.RRTypeA),
-			// Completely arbitrary amount that is not too long or too short.
-			TTL:             aws.Int64(300),
+			Name:            aws.String(fqdn),
+			Type:            aws.String(route53.RRTypeA),
+			TTL:             aws.Int64(60),
 			ResourceRecords: resourceRecords,
 		},
 	}

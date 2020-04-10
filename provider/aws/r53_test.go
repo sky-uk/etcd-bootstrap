@@ -14,9 +14,10 @@ import (
 )
 
 const (
-	hostedZoneID   = "test-hosted-zone-id"
-	hostedZoneName = "test.hosted.zone."
-	hostname       = "my-test-etcd-cluster"
+	hostedZoneID    = "test-hosted-zone-id"
+	hostedZoneName  = "test.hosted.zone."
+	hostname        = "my-test-etcd-cluster"
+	recordPerMember = false
 )
 
 // TestRoute53RegistrationProvider to register the test suite
@@ -60,7 +61,7 @@ var _ = Describe("Route53 Registration Provider", func() {
 								ResourceRecordSet: &route53.ResourceRecordSet{
 									Name:            aws.String(fmt.Sprintf("%v.%v", hostname, hostedZoneName)),
 									Type:            aws.String(route53.RRTypeA),
-									TTL:             aws.Int64(300),
+									TTL:             aws.Int64(60),
 									ResourceRecords: route53Instances,
 								},
 							},
@@ -71,9 +72,10 @@ var _ = Describe("Route53 Registration Provider", func() {
 			},
 		}
 		registrationProvider = Route53RegistrationProvider{
-			zoneID:   hostedZoneID,
-			hostname: hostname,
-			r53:      r53Client,
+			zoneID:          hostedZoneID,
+			hostname:        hostname,
+			r53:             r53Client,
+			recordPerMember: recordPerMember,
 		}
 	})
 
@@ -89,7 +91,7 @@ var _ = Describe("Route53 Registration Provider", func() {
 					ResourceRecordSet: &route53.ResourceRecordSet{
 						Name: aws.String(fmt.Sprintf("%v.%v", hostname, hostedZoneName)),
 						Type: aws.String(route53.RRTypeA),
-						TTL:  aws.Int64(300),
+						TTL:  aws.Int64(60),
 					},
 				},
 			}
