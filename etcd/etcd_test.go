@@ -101,7 +101,7 @@ var _ = Describe("Etcd client", func() {
 	Context("Members()", func() {
 		It("can list when the etcd members api client responds with expected results", func() {
 			By("Returning all expected responses")
-			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
 			memberList, err := etcdCluster.Members()
 			Expect(err).To(BeNil())
 			Expect(memberList).To(Equal([]Member{
@@ -120,7 +120,7 @@ var _ = Describe("Etcd client", func() {
 			membersAPIClient.MockList.Err = fmt.Errorf("failed to list members")
 
 			By("Return a client that isn't able to list etcd members")
-			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
 			_, err := etcdCluster.Members()
 			Expect(err).To(BeNil())
 		})
@@ -142,7 +142,7 @@ var _ = Describe("Etcd client", func() {
 			}
 
 			By("Returning an etcd client that returns complex members")
-			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
 			_, err := etcdCluster.Members()
 			Expect(err).ToNot(BeNil())
 		})
@@ -153,7 +153,7 @@ var _ = Describe("Etcd client", func() {
 			membersAPIClient.MockAdd.ExpectedPeerURL = "http://192.168.0.100"
 
 			By("Returning all expected responses")
-			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.AddMember("http://192.168.0.100")).To(BeNil())
 		})
 	})
@@ -171,7 +171,7 @@ var _ = Describe("Etcd client", func() {
 			membersAPIClient.MockRemove.ExpectedMID = "test-remove-instance-id"
 
 			By("Returning all expected responses")
-			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.RemoveMember("http://192.168.0.1:2379")).To(BeNil())
 		})
 
@@ -179,7 +179,7 @@ var _ = Describe("Etcd client", func() {
 			membersAPIClient.MockList.Err = fmt.Errorf("failed to list members")
 
 			By("Returning a client that isn't able to list etcd members")
-			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.RemoveMember("http://192.168.0.1:2379")).ToNot(BeNil())
 		})
 
@@ -200,7 +200,7 @@ var _ = Describe("Etcd client", func() {
 			}
 
 			By("Returning an etcd client that returns complex members")
-			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.RemoveMember("http://192.168.0.1:2379")).ToNot(BeNil())
 		})
 
@@ -216,7 +216,7 @@ var _ = Describe("Etcd client", func() {
 			}
 
 			By("Returning an etcd member list containing irrelevant members")
-			etcdCluster := &cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.RemoveMember("http://172.16.0.1:2379")).To(BeNil())
 		})
 	})

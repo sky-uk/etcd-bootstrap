@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elbv2"
-	"github.com/sky-uk/etcd-bootstrap/provider"
+	"github.com/sky-uk/etcd-bootstrap/cloud"
 )
 
 // LBTargetGroupRegistrationProviderConfig contains configuration when creating a default LBTargetGroupRegistrationProvider
@@ -32,7 +32,7 @@ type LBTargetGroupRegistrationProvider struct {
 
 // NewLBTargetGroupRegistrationProvider returns a default LBTargetGroupRegistrationProvider and initiates a new aws elb
 // client
-func NewLBTargetGroupRegistrationProvider(c *LBTargetGroupRegistrationProviderConfig) (provider.RegistrationProvider, error) {
+func NewLBTargetGroupRegistrationProvider(c *LBTargetGroupRegistrationProviderConfig) (*LBTargetGroupRegistrationProvider, error) {
 	awsSession, err := session.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new AWS session: %v", err)
@@ -46,14 +46,14 @@ func NewLBTargetGroupRegistrationProvider(c *LBTargetGroupRegistrationProviderCo
 	config := &aws.Config{Region: aws.String(identityDoc.Region)}
 	elbClient := elbv2.New(awsSession, config)
 
-	return LBTargetGroupRegistrationProvider{
+	return &LBTargetGroupRegistrationProvider{
 		targetGroupName: c.TargetGroupName,
 		elb:             elbClient,
 	}, nil
 }
 
 // Update will update the aws lb target group with the discovered etcd instances
-func (l LBTargetGroupRegistrationProvider) Update(instances []provider.Instance) error {
+func (l LBTargetGroupRegistrationProvider) Update(instances []cloud.Instance) error {
 	targetGroups, err := l.elb.DescribeTargetGroups(&elbv2.DescribeTargetGroupsInput{
 		Names: []*string{
 			aws.String(l.targetGroupName),

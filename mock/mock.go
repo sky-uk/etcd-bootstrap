@@ -5,8 +5,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/aws/aws-sdk-go/service/route53"
-	"github.com/sky-uk/etcd-bootstrap/bootstrap/etcd"
-	"github.com/sky-uk/etcd-bootstrap/provider"
+	"github.com/sky-uk/etcd-bootstrap/cloud"
+	"github.com/sky-uk/etcd-bootstrap/etcd"
 
 	"github.com/onsi/gomega"
 )
@@ -175,20 +175,20 @@ type CloudProvider struct {
 
 // GetInstances sets the expected output for GetInstances() on CloudProvider
 type GetInstances struct {
-	GetInstancesOutput []provider.Instance
+	GetInstancesOutput []cloud.Instance
 }
 
 // GetInstances mocks the etcd-bootstrap cloud provider
-func (t CloudProvider) GetInstances() []provider.Instance {
+func (t CloudProvider) GetInstances() []cloud.Instance {
 	return t.MockGetInstances.GetInstancesOutput
 }
 
 // GetLocalInstance sets the expected output for GetLocalInstance() on CloudProvider
 type GetLocalInstance struct {
-	GetLocalInstance provider.Instance
+	GetLocalInstance cloud.Instance
 }
 
 // GetLocalInstance mocks the etcd-bootstrap cloud provider
-func (t CloudProvider) GetLocalInstance() provider.Instance {
+func (t CloudProvider) GetLocalInstance() cloud.Instance {
 	return t.MockGetLocalInstance.GetLocalInstance
 }

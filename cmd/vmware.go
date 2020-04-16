@@ -5,7 +5,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/sky-uk/etcd-bootstrap/bootstrap"
-	vmware_provider "github.com/sky-uk/etcd-bootstrap/provider/vmware"
+	vmware_provider "github.com/sky-uk/etcd-bootstrap/cloud/vmware"
 	"github.com/spf13/cobra"
 )
 

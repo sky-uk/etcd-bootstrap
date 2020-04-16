@@ -8,12 +8,12 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/sky-uk/etcd-bootstrap/provider"
+	"github.com/sky-uk/etcd-bootstrap/cloud"
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/mo"
-	"github.com/vmware/govmomi/vim25/types"
+	vmware_types "github.com/vmware/govmomi/vim25/types"
 )
 
 // Config is the configuration required to talk to the vSphere API to fetch a list of nodes
@@ -38,23 +38,24 @@ type Config struct {
 	Role string
 }
 
-type vmwareMembers struct {
-	instances []provider.Instance
-	instance  provider.Instance
+// Members of a VMware group.
+type Members struct {
+	instances []cloud.Instance
+	instance  cloud.Instance
 }
 
 // GetInstances will return the vmware etcd instances
-func (m vmwareMembers) GetInstances() []provider.Instance {
+func (m *Members) GetInstances() []cloud.Instance {
 	return m.instances
 }
 
 // GetLocalInstance will get the vmware instance etcd bootstrap is running on
-func (m vmwareMembers) GetLocalInstance() provider.Instance {
+func (m *Members) GetLocalInstance() cloud.Instance {
 	return m.instance
 }
 
 // NewVMware returns the Members this local instance belongs to.
-func NewVMware(cfg *Config) (provider.Provider, error) {
+func NewVMware(cfg *Config) (*Members, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	defer cancel()
@@ -75,15 +76,15 @@ func NewVMware(cfg *Config) (provider.Provider, error) {
 		return nil, err
 	}
 
-	members := vmwareMembers{
+	members := Members{
 		instances: instances,
 		instance:  *instance,
 	}
 
-	return members, nil
+	return &members, nil
 }
 
-func findAllInstances(ctx context.Context, c *govmomi.Client, env, role string) ([]provider.Instance, error) {
+func findAllInstances(ctx context.Context, c *govmomi.Client, env, role string) ([]cloud.Instance, error) {
 	m := view.NewManager(c.Client)
 
 	v, err := m.CreateContainerView(ctx, c.ServiceContent.RootFolder, []string{"VirtualMachine"}, true)
@@ -102,7 +103,7 @@ func findAllInstances(ctx context.Context, c *govmomi.Client, env, role string) 
 		return nil, err
 	}
 
-	var instances []provider.Instance
+	var instances []cloud.Instance
 
 	var matched []mo.VirtualMachine
 	for _, vm := range vms {
@@ -112,8 +113,8 @@ func findAllInstances(ctx context.Context, c *govmomi.Client, env, role string) 
 	}
 
 	for _, vm := range matched {
-		if vm.Summary.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
-			instances = append(instances, provider.Instance{
+		if vm.Summary.Runtime.PowerState == vmware_types.VirtualMachinePowerStatePoweredOn {
+			instances = append(instances, cloud.Instance{
 				InstanceID: vm.Config.Name,
 				PrivateIP:  vm.Summary.Guest.IpAddress,
 			})
@@ -134,10 +135,10 @@ func matchesTag(vm mo.VirtualMachine, tag string, match string) bool {
 	return false
 }
 
-func findThisInstance(cfg *Config, instances []provider.Instance) (*provider.Instance, error) {
+func findThisInstance(cfg *Config, instances []cloud.Instance) (*cloud.Instance, error) {
 	for _, instance := range instances {
 		if strings.Contains(cfg.VMName, instance.InstanceID) {
-			return &provider.Instance{
+			return &cloud.Instance{
 				InstanceID: instance.InstanceID,
 				PrivateIP:  instance.PrivateIP,
 			}, nil

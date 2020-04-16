@@ -5,7 +5,7 @@ import (
 
 	"github.com/coreos/etcd/client"
 	log "github.com/sirupsen/logrus"
-	"github.com/sky-uk/etcd-bootstrap/provider"
+	"github.com/sky-uk/etcd-bootstrap/cloud"
 	"golang.org/x/net/context"
 )
 
@@ -16,17 +16,14 @@ type etcdMembersAPI interface {
 }
 
 // Cluster represents an etcd cluster.
-type Cluster interface {
-	// Members returns the cluster members.
-	Members() ([]Member, error)
-	// RemoveMember removes a member of the cluster by its peer URL.
-	RemoveMember(peerURL string) error
-	// AddMember adds a new member to the cluster by its peer URL.
-	AddMember(peerURL string) error
+type Cluster struct {
+	membersAPIClient etcdMembersAPI
 }
 
-type cluster struct {
-	membersAPIClient etcdMembersAPI
+// Provider of cloud node instance information.
+type Provider interface {
+	// GetInstances returns all the non-terminated instances that will be part of the etcd cluster.
+	GetInstances() []cloud.Instance
 }
 
 // Member represents a node in the etcd cluster.
@@ -35,8 +32,8 @@ type Member struct {
 	PeerURL string
 }
 
-// New returns a cluster object representing the etcd cluster in the cloud provider.
-func New(provider provider.Provider) (Cluster, error) {
+// New returns a cluster object for interacting with the etcd cluster API.
+func New(provider Provider) (*Cluster, error) {
 	instances := provider.GetInstances()
 
 	var endpoints []string
@@ -49,10 +46,11 @@ func New(provider provider.Provider) (Cluster, error) {
 		return nil, err
 	}
 
-	return &cluster{client.NewMembersAPI(c)}, nil
+	return &Cluster{client.NewMembersAPI(c)}, nil
 }
 
-func (e *cluster) Members() ([]Member, error) {
+// Members returns the cluster members.
+func (e *Cluster) Members() ([]Member, error) {
 	etcdMembers, err := e.membersAPIClient.List(context.Background())
 	if err != nil {
 		log.Infof("Detected cluster errors, this is normal when bootstrapping a new cluster: %v", err)
@@ -73,12 +71,14 @@ func (e *cluster) Members() ([]Member, error) {
 	return members, nil
 }
 
-func (e *cluster) AddMember(peerURL string) error {
+// AddMember adds a new member to the cluster by its peer URL.
+func (e *Cluster) AddMember(peerURL string) error {
 	_, err := e.membersAPIClient.Add(context.Background(), peerURL)
 	return err
 }
 
-func (e *cluster) RemoveMember(peerURL string) error {
+// RemoveMember removes a member of the cluster by its peer URL.
+func (e *Cluster) RemoveMember(peerURL string) error {
 	members, err := e.membersAPIClient.List(context.Background())
 	if err != nil {
 		return err

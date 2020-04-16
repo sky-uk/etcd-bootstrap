@@ -6,8 +6,8 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/route53"
+	"github.com/sky-uk/etcd-bootstrap/cloud"
 	"github.com/sky-uk/etcd-bootstrap/mock"
-	"github.com/sky-uk/etcd-bootstrap/provider"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -93,7 +93,7 @@ var _ = Describe("Route53 Registration Provider", func() {
 					},
 				},
 			}
-			Expect(registrationProvider.Update([]provider.Instance{})).To(BeNil())
+			Expect(registrationProvider.Update([]cloud.Instance{})).To(BeNil())
 		})
 
 		It("fails when GetHostedZone returns an error", func() {

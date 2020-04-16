@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sky-uk/etcd-bootstrap/bootstrap/etcd"
+	"github.com/sky-uk/etcd-bootstrap/cloud"
+	"github.com/sky-uk/etcd-bootstrap/etcd"
 	"github.com/sky-uk/etcd-bootstrap/mock"
-	"github.com/sky-uk/etcd-bootstrap/provider"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -39,7 +39,7 @@ var _ = Describe("Bootstrap", func() {
 		By("Returning the constant instance values")
 		cloudProvider = mock.CloudProvider{
 			MockGetLocalInstance: mock.GetLocalInstance{
-				GetLocalInstance: provider.Instance{
+				GetLocalInstance: cloud.Instance{
 					InstanceID: localInstanceID,
 					PrivateIP:  localPrivateIP,
 				},
@@ -61,7 +61,7 @@ var _ = Describe("Bootstrap", func() {
 
 	It("fails when it cannot get etcd members", func() {
 		By("Returning some instances including the local instance")
-		cloudProvider.MockGetInstances.GetInstancesOutput = []provider.Instance{
+		cloudProvider.MockGetInstances.GetInstancesOutput = []cloud.Instance{
 			{
 				InstanceID: localInstanceID,
 				PrivateIP:  localPrivateIP,
@@ -70,7 +70,7 @@ var _ = Describe("Bootstrap", func() {
 
 		By("Returning an error when getting the list of etcd members")
 		etcdCluster.MockMembers.Err = fmt.Errorf("failed to get etcd members")
-		bootstrapperClient := bootstrapper{
+		bootstrapperClient := Bootstrapper{
 			provider: cloudProvider,
 			cluster:  etcdCluster,
 		}
@@ -81,7 +81,7 @@ var _ = Describe("Bootstrap", func() {
 
 	It("does not fail when it cannot remove member", func() {
 		By("Returning some instances including the local instance")
-		cloudProvider.MockGetInstances.GetInstancesOutput = []provider.Instance{
+		cloudProvider.MockGetInstances.GetInstancesOutput = []cloud.Instance{
 			{
 				InstanceID: localInstanceID,
 				PrivateIP:  localPrivateIP,
@@ -101,7 +101,7 @@ var _ = Describe("Bootstrap", func() {
 
 		By("Returning an error when trying to remove an etcd member")
 		etcdCluster.MockRemoveMember.Err = fmt.Errorf("failed to remove etcd members")
-		bootstrapperClient := bootstrapper{
+		bootstrapperClient := Bootstrapper{
 			provider: cloudProvider,
 			cluster:  etcdCluster,
 		}
@@ -114,7 +114,7 @@ var _ = Describe("Bootstrap", func() {
 
 	It("fails when it cannot add etcd member", func() {
 		By("Returning some instances including the local instance")
-		cloudProvider.MockGetInstances.GetInstancesOutput = []provider.Instance{
+		cloudProvider.MockGetInstances.GetInstancesOutput = []cloud.Instance{
 			{
 				InstanceID: localInstanceID,
 				PrivateIP:  localPrivateIP,
@@ -135,7 +135,7 @@ var _ = Describe("Bootstrap", func() {
 
 		By("Returning an error when attempting to list all etcd members")
 		etcdCluster.MockAddMember.Err = fmt.Errorf("failed to add etcd member")
-		bootstrapperClient := bootstrapper{
+		bootstrapperClient := Bootstrapper{
 			provider: cloudProvider,
 			cluster:  etcdCluster,
 		}
@@ -148,7 +148,7 @@ var _ = Describe("Bootstrap", func() {
 
 	It("new cluster", func() {
 		By("Returning some instances including the local instance")
-		cloudProvider.MockGetInstances.GetInstancesOutput = []provider.Instance{
+		cloudProvider.MockGetInstances.GetInstancesOutput = []cloud.Instance{
 			{
 				InstanceID: localInstanceID,
 				PrivateIP:  localPrivateIP,
@@ -165,7 +165,7 @@ var _ = Describe("Bootstrap", func() {
 
 		By("Returning a list of etcd members that is empty")
 		etcdCluster.MockMembers.MembersOutput = []etcd.Member{}
-		bootstrapperClient := bootstrapper{
+		bootstrapperClient := Bootstrapper{
 			provider: cloudProvider,
 			cluster:  etcdCluster,
 		}
@@ -186,7 +186,7 @@ var _ = Describe("Bootstrap", func() {
 
 	It("an existing cluster", func() {
 		By("Returning some instances including the local instance")
-		cloudProvider.MockGetInstances.GetInstancesOutput = []provider.Instance{
+		cloudProvider.MockGetInstances.GetInstancesOutput = []cloud.Instance{
 			{
 				InstanceID: localInstanceID,
 				PrivateIP:  localPrivateIP,
@@ -216,7 +216,7 @@ var _ = Describe("Bootstrap", func() {
 				PeerURL: "http://192.168.0.2:2380",
 			},
 		}
-		bootstrapperClient := bootstrapper{
+		bootstrapperClient := Bootstrapper{
 			provider: cloudProvider,
 			cluster:  etcdCluster,
 		}
@@ -237,7 +237,7 @@ var _ = Describe("Bootstrap", func() {
 
 	It("an existing cluster where a node needs replacing", func() {
 		By("Returning some instances including the local instance")
-		cloudProvider.MockGetInstances.GetInstancesOutput = []provider.Instance{
+		cloudProvider.MockGetInstances.GetInstancesOutput = []cloud.Instance{
 			{
 				InstanceID: localInstanceID,
 				PrivateIP:  localPrivateIP,
@@ -270,7 +270,7 @@ var _ = Describe("Bootstrap", func() {
 
 		By("Expecting a RemoveMember() call to be made with the old instance PeerURL")
 		etcdCluster.MockRemoveMember.ExpectedInputs = []string{"http://192.168.0.1:2380"}
-		bootstrapperClient := bootstrapper{
+		bootstrapperClient := Bootstrapper{
 			provider: cloudProvider,
 			cluster:  etcdCluster,
 		}
@@ -290,7 +290,7 @@ var _ = Describe("Bootstrap", func() {
 
 	It("an existing cluster when partially initialised", func() {
 		By("Returning some instances including the local instance")
-		cloudProvider.MockGetInstances.GetInstancesOutput = []provider.Instance{
+		cloudProvider.MockGetInstances.GetInstancesOutput = []cloud.Instance{
 			{
 				InstanceID: localInstanceID,
 				PrivateIP:  localPrivateIP,
@@ -320,7 +320,7 @@ var _ = Describe("Bootstrap", func() {
 				PeerURL: "http://192.168.0.2:2380",
 			},
 		}
-		bootstrapperClient := bootstrapper{
+		bootstrapperClient := Bootstrapper{
 			provider: cloudProvider,
 			cluster:  etcdCluster,
 		}

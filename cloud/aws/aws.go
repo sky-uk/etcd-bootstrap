@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/sky-uk/etcd-bootstrap/provider"
+	"github.com/sky-uk/etcd-bootstrap/cloud"
 )
 
 // awsASG interface to abstract away from AWS commands
@@ -23,26 +23,27 @@ type awsEC2 interface {
 	DescribeInstances(e *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error)
 }
 
-type awsMembers struct {
+// Members of the AWS auto scaling group.
+type Members struct {
 	identityDocument ec2metadata.EC2InstanceIdentityDocument
-	instances        []provider.Instance
+	instances        []cloud.Instance
 }
 
 // GetInstances will return the aws etcd instances
-func (a *awsMembers) GetInstances() []provider.Instance {
+func (a *Members) GetInstances() []cloud.Instance {
 	return a.instances
 }
 
 // GetLocalInstance will get the aws instance etcd bootstrap is running on
-func (a *awsMembers) GetLocalInstance() provider.Instance {
-	return provider.Instance{
+func (a *Members) GetLocalInstance() cloud.Instance {
+	return cloud.Instance{
 		InstanceID: a.identityDocument.InstanceID,
 		PrivateIP:  a.identityDocument.PrivateIP,
 	}
 }
 
 // NewAWS returns the Members this local instance belongs to.
-func NewAWS() (provider.Provider, error) {
+func NewAWS() (*Members, error) {
 	awsSession, err := session.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new AWS session: %v", err)
@@ -63,13 +64,13 @@ func NewAWS() (provider.Provider, error) {
 		return nil, err
 	}
 
-	return &awsMembers{
+	return &Members{
 		identityDocument: identityDoc,
 		instances:        instances,
 	}, nil
 }
 
-func queryInstances(identity ec2metadata.EC2InstanceIdentityDocument, awsASGClient awsASG, awsEC2Client awsEC2) ([]provider.Instance, error) {
+func queryInstances(identity ec2metadata.EC2InstanceIdentityDocument, awsASGClient awsASG, awsEC2Client awsEC2) ([]cloud.Instance, error) {
 	instanceID := identity.InstanceID
 	asgName, err := getASGName(instanceID, awsASGClient)
 	if err != nil {
@@ -97,10 +98,10 @@ func queryInstances(identity ec2metadata.EC2InstanceIdentityDocument, awsASGClie
 		return nil, err
 	}
 
-	var instances []provider.Instance
+	var instances []cloud.Instance
 	for _, reservation := range out.Reservations {
 		for _, instance := range reservation.Instances {
-			instances = append(instances, provider.Instance{
+			instances = append(instances, cloud.Instance{
 				InstanceID: *instance.InstanceId,
 				PrivateIP:  *instance.PrivateIpAddress,
 			})

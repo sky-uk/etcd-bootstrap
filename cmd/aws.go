@@ -4,28 +4,13 @@ import (
 	"fmt"
 
 	"github.com/sky-uk/etcd-bootstrap/bootstrap"
-	"github.com/sky-uk/etcd-bootstrap/provider"
+	"github.com/sky-uk/etcd-bootstrap/cloud"
 
 	log "github.com/sirupsen/logrus"
-	aws_provider "github.com/sky-uk/etcd-bootstrap/provider/aws"
+	aws_provider "github.com/sky-uk/etcd-bootstrap/cloud/aws"
+	"github.com/sky-uk/etcd-bootstrap/cloud/noop"
 	"github.com/spf13/cobra"
 )
-
-const (
-	noop registrationProvider = iota
-	route53
-	lb
-)
-
-var (
-	awsRegistrationProviders = []string{
-		"noop",
-		"route53",
-		"lb",
-	}
-)
-
-const defaultAWSRegistrationProvider = "noop"
 
 // awsCmd represents the generate config command for AWS etcd clusters
 var awsCmd = &cobra.Command{
@@ -44,8 +29,8 @@ var (
 func init() {
 	RootCmd.AddCommand(awsCmd)
 
-	awsCmd.Flags().StringVarP(&awsRegistrationProvider, "registration-provider", "r", defaultAWSRegistrationProvider, fmt.Sprintf(
-		"automatic registration provider to use, options are: %v", awsRegistrationProviders))
+	awsCmd.Flags().StringVarP(&awsRegistrationProvider, "registration-provider", "r", "noop", fmt.Sprintf(
+		"automatic registration provider to use, options are: noop, route53, lb"))
 	awsCmd.Flags().StringVar(&route53ZoneID, "r53-zone-id", "",
 		"route53 zone id for automatic registration (required when --registration-provider=route53)")
 	awsCmd.Flags().StringVar(&dnsHostname, "dns-hostname", "",
@@ -54,8 +39,12 @@ func init() {
 		"loadbalancer target group name to use when registering the etcd cluster (required when: --registration-provider=lb)")
 }
 
+type registrationProvider interface {
+	Update([]cloud.Instance) error
+}
+
 func aws(cmd *cobra.Command, args []string) {
-	registrationProvider := initialiseAWSRegistrationProvider()
+	registrator := initialiseAWSRegistrationProvider()
 
 	awsProvider, err := aws_provider.NewAWS()
 	if err != nil {
@@ -71,24 +60,25 @@ func aws(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to generate etcd flags file: %v", err)
 	}
 
-	if err := registrationProvider.Update(awsProvider.GetInstances()); err != nil {
+	if err := registrator.Update(awsProvider.GetInstances()); err != nil {
 		log.Fatalf("Failed to register etcd cluster data with cloud registration provider: %v", err)
 	}
 }
 
-func initialiseAWSRegistrationProvider() provider.RegistrationProvider {
+func initialiseAWSRegistrationProvider() registrationProvider {
 	// default to noop registration provider
-	registrationProvider := provider.NewNoopRegistrationProvider()
+	var registrator registrationProvider
 	var err error
 
 	switch awsRegistrationProvider {
-	case noop.String(awsRegistrationProviders):
+	case "noop":
 		log.Info("Using noop cloud registration provider")
-	case route53.String(awsRegistrationProviders):
+		registrator = noop.RegistrationProvider{}
+	case "route53":
 		checkRequiredFlag(route53ZoneID, "--r53-zone-id")
 		checkRequiredFlag(dnsHostname, "--dns-hostname")
 
-		registrationProvider, err = aws_provider.NewRoute53RegistrationProvider(&aws_provider.Route53RegistrationProviderConfig{
+		registrator, err = aws_provider.NewRoute53RegistrationProvider(&aws_provider.Route53RegistrationProviderConfig{
 			ZoneID:   route53ZoneID,
 			Hostname: dnsHostname,
 		})
@@ -97,10 +87,10 @@ func initialiseAWSRegistrationProvider() provider.RegistrationProvider {
 		}
 
 		log.Info("Using route53 cloud registration provider")
-	case lb.String(awsRegistrationProviders):
+	case "lb":
 		checkRequiredFlag(lbTargetGroupName, "--lb-target-group-name")
 
-		registrationProvider, err = aws_provider.NewLBTargetGroupRegistrationProvider(&aws_provider.LBTargetGroupRegistrationProviderConfig{
+		registrator, err = aws_provider.NewLBTargetGroupRegistrationProvider(&aws_provider.LBTargetGroupRegistrationProviderConfig{
 			TargetGroupName: lbTargetGroupName,
 		})
 		if err != nil {
@@ -113,5 +103,5 @@ func initialiseAWSRegistrationProvider() provider.RegistrationProvider {
 	}
 
 	log.Debugf("Registration provider created for: %v", awsRegistrationProvider)
-	return registrationProvider
+	return registrator
 }
