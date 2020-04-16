@@ -66,31 +66,27 @@ func aws(cmd *cobra.Command, args []string) {
 }
 
 func initialiseAWSRegistrationProvider() registrationProvider {
-	// default to noop registration provider
-	var registrator registrationProvider
-	var err error
-
 	switch awsRegistrationProvider {
 	case "noop":
 		log.Info("Using noop cloud registration provider")
-		registrator = noop.RegistrationProvider{}
+		return noop.RegistrationProvider{}
 	case "route53":
 		checkRequiredFlag(route53ZoneID, "--r53-zone-id")
 		checkRequiredFlag(dnsHostname, "--dns-hostname")
 
-		registrator, err = aws_provider.NewRoute53RegistrationProvider(&aws_provider.Route53RegistrationProviderConfig{
+		registrator, err := aws_provider.NewRoute53RegistrationProvider(&aws_provider.Route53RegistrationProviderConfig{
 			ZoneID:   route53ZoneID,
 			Hostname: dnsHostname,
 		})
 		if err != nil {
 			log.Fatalf("Failed to create route53 registration client: %v", err)
 		}
-
 		log.Info("Using route53 cloud registration provider")
+		return registrator
 	case "lb":
 		checkRequiredFlag(lbTargetGroupName, "--lb-target-group-name")
 
-		registrator, err = aws_provider.NewLBTargetGroupRegistrationProvider(&aws_provider.LBTargetGroupRegistrationProviderConfig{
+		registrator, err := aws_provider.NewLBTargetGroupRegistrationProvider(&aws_provider.LBTargetGroupRegistrationProviderConfig{
 			TargetGroupName: lbTargetGroupName,
 		})
 		if err != nil {
@@ -98,10 +94,9 @@ func initialiseAWSRegistrationProvider() registrationProvider {
 		}
 
 		log.Info("Using loadbalancer target group cloud registration provider")
+		return registrator
 	default:
 		log.Fatalf("Unsupported registration type: %v", awsRegistrationProvider)
+		return nil
 	}
-
-	log.Debugf("Registration provider created for: %v", awsRegistrationProvider)
-	return registrator
 }
