@@ -6,8 +6,8 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/elbv2"
+	"github.com/sky-uk/etcd-bootstrap/cloud"
 	"github.com/sky-uk/etcd-bootstrap/mock"
-	"github.com/sky-uk/etcd-bootstrap/provider"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -72,7 +72,7 @@ var _ = Describe("Loadbalancer Target Group Registration Provider", func() {
 		It("passes when DescribeTargetGroups and RegisterTargets return expected values with no instances", func() {
 			elbClient.MockRegisterTargets.ExpectedInput.Targets = nil
 			registrationProvider.elb = elbClient
-			Expect(registrationProvider.Update([]provider.Instance{})).To(BeNil())
+			Expect(registrationProvider.Update([]cloud.Instance{})).To(BeNil())
 		})
 
 		It("fails when DescribeTargetGroups errors", func() {

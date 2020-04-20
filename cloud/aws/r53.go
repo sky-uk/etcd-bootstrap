@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/route53"
 	log "github.com/sirupsen/logrus"
-	"github.com/sky-uk/etcd-bootstrap/provider"
+	"github.com/sky-uk/etcd-bootstrap/cloud"
 )
 
 // Route53RegistrationProviderConfig contains configuration when creating a default Route53RegistrationProvider
@@ -34,7 +34,7 @@ type Route53RegistrationProvider struct {
 }
 
 // NewRoute53RegistrationProvider returns a default Route53RegistrationProvider and initiates an new aws route53 client
-func NewRoute53RegistrationProvider(c *Route53RegistrationProviderConfig) (provider.RegistrationProvider, error) {
+func NewRoute53RegistrationProvider(c *Route53RegistrationProviderConfig) (*Route53RegistrationProvider, error) {
 	awsSession, err := session.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new AWS session: %v", err)
@@ -48,7 +48,7 @@ func NewRoute53RegistrationProvider(c *Route53RegistrationProviderConfig) (provi
 	config := &aws.Config{Region: aws.String(identityDoc.Region)}
 	r53Client := route53.New(awsSession, config)
 
-	return Route53RegistrationProvider{
+	return &Route53RegistrationProvider{
 		zoneID:   c.ZoneID,
 		hostname: c.Hostname,
 		r53:      r53Client,
@@ -56,7 +56,7 @@ func NewRoute53RegistrationProvider(c *Route53RegistrationProviderConfig) (provi
 }
 
 // Update will update the specified hostname in the route53 zone with discovered etcd ip addresses
-func (r Route53RegistrationProvider) Update(instances []provider.Instance) error {
+func (r Route53RegistrationProvider) Update(instances []cloud.Instance) error {
 	zoneInput := &route53.GetHostedZoneInput{Id: aws.String(r.zoneID)}
 	zone, err := r.r53.GetHostedZone(zoneInput)
 	if err != nil {

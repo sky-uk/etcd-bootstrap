@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/sky-uk/etcd-bootstrap/provider"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/sky-uk/etcd-bootstrap/cloud"
 	"github.com/sky-uk/etcd-bootstrap/mock"
 )
 
@@ -28,7 +27,7 @@ const (
 )
 
 var (
-	testInstances = []provider.Instance{
+	testInstances = []cloud.Instance{
 		{
 			InstanceID: "test-instance-id-1",
 			PrivateIP:  "192.168.0.1",
@@ -55,10 +54,10 @@ var _ = Describe("AWS Provider", func() {
 	})
 
 	Context("interface functions", func() {
-		var awsProvider provider.Provider
+		var awsProvider *Members
 
 		BeforeEach(func() {
-			awsProvider = &awsMembers{
+			awsProvider = &Members{
 				identityDocument: identityDoc,
 				instances:        testInstances,
 			}
@@ -69,7 +68,7 @@ var _ = Describe("AWS Provider", func() {
 		})
 
 		It("run GetLocalInstance successfully", func() {
-			Expect(awsProvider.GetLocalInstance()).To(Equal(provider.Instance{
+			Expect(awsProvider.GetLocalInstance()).To(Equal(cloud.Instance{
 				InstanceID: localInstanceID,
 				PrivateIP:  localPrivateIP,
 			}))

@@ -3,7 +3,7 @@ package cmd
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/sky-uk/etcd-bootstrap/bootstrap"
-	gcp_provider "github.com/sky-uk/etcd-bootstrap/provider/gcp"
+	gcp_provider "github.com/sky-uk/etcd-bootstrap/cloud/gcp"
 	"github.com/spf13/cobra"
 )
 
