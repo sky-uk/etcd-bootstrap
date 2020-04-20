@@ -25,7 +25,7 @@ var (
 	route53ZoneID           string
 	dnsHostname             string
 	lbTargetGroupName       string
-	clusterLookupMethod     string
+	instanceLookupMethod     string
 	srvDomainName           string
 	srvService              string
 )
@@ -41,12 +41,12 @@ func init() {
 		"hostname to set to the etcd cluster when registration-provider=route53")
 	awsCmd.Flags().StringVar(&lbTargetGroupName, "lb-target-group-name", "",
 		"loadbalancer target group name to use when --registration-provider=lb")
-	awsCmd.Flags().StringVar(&clusterLookupMethod, "cluster-lookup-method", "asg",
+	awsCmd.Flags().StringVar(&instanceLookupMethod, "instance-lookup-method", "asg",
 		"method for looking up instances in the cluster, options are: asg, srv")
 	awsCmd.Flags().StringVar(&srvDomainName, "srv-domain-name", "",
-		"domain name to use for cluster-lookup-method=srv")
+		"domain name to use for instance-lookup-method=srv")
 	awsCmd.Flags().StringVar(&srvService, "srv-service", "etcd-bootstrap",
-		"service to use for cluster-lookup-method=srv")
+		"service to use for instance-lookup-method=srv")
 }
 
 type registrationProvider interface {
@@ -81,7 +81,7 @@ func aws(cmd *cobra.Command, args []string) {
 }
 
 func cloudInstances(asg *aws_cloud.Members) bootstrap.CloudInstances {
-	switch clusterLookupMethod {
+	switch instanceLookupMethod {
 	case "asg":
 		log.Info("Using ASG for looking up cluster instances")
 		return asg
@@ -97,7 +97,7 @@ func cloudInstances(asg *aws_cloud.Members) bootstrap.CloudInstances {
 		})
 		return cloudInstances
 	default:
-		log.Fatalf("Unsupported cluster lookup method %q", clusterLookupMethod)
+		log.Fatalf("Unsupported cluster lookup method %q", instanceLookupMethod)
 		return nil
 	}
 }
