@@ -44,10 +44,10 @@ var (
 )
 
 var _ = Describe("AWS Provider", func() {
-	var identityDoc ec2metadata.EC2InstanceIdentityDocument
+	var identityDoc *ec2metadata.EC2InstanceIdentityDocument
 
 	BeforeEach(func() {
-		identityDoc = ec2metadata.EC2InstanceIdentityDocument{
+		identityDoc = &ec2metadata.EC2InstanceIdentityDocument{
 			PrivateIP:  localPrivateIP,
 			InstanceID: localInstanceID,
 		}

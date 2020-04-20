@@ -23,7 +23,7 @@ type Cluster struct {
 // Provider of cloud node instance information.
 type Provider interface {
 	// GetInstances returns all the non-terminated instances that will be part of the etcd cluster.
-	GetInstances() []cloud.Instance
+	GetInstances() ([]cloud.Instance, error)
 }
 
 // Member represents a node in the etcd cluster.
@@ -34,7 +34,10 @@ type Member struct {
 
 // New returns a cluster object for interacting with the etcd cluster API.
 func New(provider Provider) (*Cluster, error) {
-	instances := provider.GetInstances()
+	instances, err := provider.GetInstances()
+	if err != nil {
+		return nil, err
+	}
 
 	var endpoints []string
 	for _, instance := range instances {
