@@ -10,13 +10,13 @@ import (
 )
 
 const (
-	service = "etcd-bootstrap"
 	proto   = "tcp"
 	timeout = 5 * time.Second
 )
 
 // Members returns the instance information for an etcd cluster.
 type Members struct {
+	Config
 	instances []cloud.Instance
 }
 
@@ -37,31 +37,32 @@ type Config struct {
 	Resolver Resolver
 }
 
-// Lookup uses the SRV record to return the members in an etcd cluster.
-func Lookup(conf *Config) (*Members, error) {
-	r := conf.Resolver
-	if r == nil {
-		r = &net.Resolver{}
+// New returns members that will use the SRV record to look themselves up.
+func New(conf *Config) *Members {
+	m := &Members{Config: *conf}
+	if m.Resolver == nil {
+		m.Resolver = &net.Resolver{}
 	}
-	ctx, cancelFn := context.WithTimeout(context.Background(), timeout)
-	defer cancelFn()
-	_, addrs, err := r.LookupSRV(ctx, service, proto, conf.DomainName)
-	if err != nil {
-		return nil, fmt.Errorf("unable to lookup SRV for _%s._%s.%s: %w", service, proto, conf.DomainName, err)
-	}
-	var instances []cloud.Instance
-	for _, addr := range addrs {
-		instances = append(instances, cloud.Instance{
-			PrivateIP:  addr.Target,
-			InstanceID: fmt.Sprintf("etcd-%s", addr.Target),
-		})
-	}
-	return &Members{
-		instances: instances,
-	}, err
+	return m
 }
 
 // GetInstances returns the instances inside of the SRV record.
-func (s *Members) GetInstances() []cloud.Instance {
-	return s.instances
+func (m *Members) GetInstances() ([]cloud.Instance, error) {
+	if m.instances == nil {
+		ctx, cancelFn := context.WithTimeout(context.Background(), timeout)
+		defer cancelFn()
+		_, addrs, err := m.Resolver.LookupSRV(ctx, m.Service, proto, m.DomainName)
+		if err != nil {
+			return nil, fmt.Errorf("unable to lookup SRV for _%s._%s.%s: %w", m.Service, proto, m.DomainName, err)
+		}
+		var instances []cloud.Instance
+		for _, addr := range addrs {
+			instances = append(instances, cloud.Instance{
+				PrivateIP:  addr.Target,
+				InstanceID: fmt.Sprintf("etcd-%s", addr.Target),
+			})
+		}
+		m.instances = instances
+	}
+	return m.instances, nil
 }

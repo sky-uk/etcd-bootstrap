@@ -56,21 +56,21 @@ var _ = Describe("SRV Instances", func() {
 		conf = &Config{
 			DomainName: "my-etcd-cluster.example.com",
 			Resolver:   resolver,
-			Service:    "etcd-client-ssl",
+			Service:    "etcd-server-ssl",
 		}
 	})
 
 	It("should request the correct SRV record", func() {
-		Lookup(conf)
+		New(conf).GetInstances()
 
-		Expect(resolver.receivedService).To(Equal("etcd-bootstrap"))
+		Expect(resolver.receivedService).To(Equal("etcd-server-ssl"))
 		Expect(resolver.receivedProto).To(Equal("tcp"))
 		Expect(resolver.receivedName).To(Equal("my-etcd-cluster.example.com"))
 	})
 
 	It("should return the instances in the SRV record", func() {
-		srv, _ := Lookup(conf)
-		instances := srv.GetInstances()
+		srv := New(conf)
+		instances, _ := srv.GetInstances()
 
 		Expect(instances).To(HaveLen(3))
 		Expect(instances[0].PrivateIP).To(Equal("10.10.10.1"))
@@ -79,8 +79,8 @@ var _ = Describe("SRV Instances", func() {
 	})
 
 	It("should return unique instance IDs", func() {
-		srv, _ := Lookup(conf)
-		instances := srv.GetInstances()
+		srv := New(conf)
+		instances, _ := srv.GetInstances()
 
 		Expect(instances).To(HaveLen(3))
 		Expect(instances[0].InstanceID).To(Equal("etcd-10.10.10.1"))

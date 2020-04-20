@@ -28,13 +28,13 @@ type Members struct {
 }
 
 // GetInstances will return the gcp etcd instances
-func (m *Members) GetInstances() []cloud.Instance {
-	return m.instances
+func (m *Members) GetInstances() ([]cloud.Instance, error) {
+	return m.instances, nil
 }
 
 // GetLocalInstance will get the gcp instance etcd bootstrap is running on
-func (m *Members) GetLocalInstance() cloud.Instance {
-	return m.instance
+func (m *Members) GetLocalInstance() (cloud.Instance, error) {
+	return m.instance, nil
 }
 
 // NewGCP returns the Members matching the cfg.

@@ -5,8 +5,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/aws/aws-sdk-go/service/route53"
-	"github.com/sky-uk/etcd-bootstrap/cloud"
-	"github.com/sky-uk/etcd-bootstrap/etcd"
 
 	"github.com/onsi/gomega"
 )
@@ -123,72 +121,4 @@ type ChangeResourceRecordSets struct {
 func (t AWSR53Client) ChangeResourceRecordSets(r *route53.ChangeResourceRecordSetsInput) (*route53.ChangeResourceRecordSetsOutput, error) {
 	gomega.Expect(r).To(gomega.Equal(t.MockChangeResourceRecordSets.ExpectedInput))
 	return t.MockChangeResourceRecordSets.ChangeResourceRecordSetsOutput, t.MockChangeResourceRecordSets.Err
-}
-
-// EtcdCluster for mocking calls to the etcd cluster package client
-type EtcdCluster struct {
-	MockMembers      Members
-	MockRemoveMember RemoveMember
-	MockAddMember    AddMember
-}
-
-// Members sets the expected output for Members() on EtcdCluster
-type Members struct {
-	MembersOutput []etcd.Member
-	Err           error
-}
-
-// Members mocks the etcd cluster package client
-func (t EtcdCluster) Members() ([]etcd.Member, error) {
-	return t.MockMembers.MembersOutput, t.MockMembers.Err
-}
-
-// RemoveMember sets the expected input for RemoveMember() on EtcdCluster
-type RemoveMember struct {
-	ExpectedInputs []string
-	Err            error
-}
-
-// RemoveMember mocks the etcd cluster package client
-func (t EtcdCluster) RemoveMember(peerURL string) error {
-	gomega.Expect(t.MockRemoveMember.ExpectedInputs).To(gomega.ContainElement(peerURL))
-	return t.MockRemoveMember.Err
-}
-
-// AddMember sets the expected input for AddMember() on EtcdCluster
-type AddMember struct {
-	ExpectedInput string
-	Err           error
-}
-
-// AddMember mocks the etcd cluster package client
-func (t EtcdCluster) AddMember(peerURL string) error {
-	gomega.Expect(peerURL).To(gomega.Equal(t.MockAddMember.ExpectedInput))
-	return t.MockAddMember.Err
-}
-
-// CloudProvider for mocking calls to an etcd-bootstrap cloud provider
-type CloudProvider struct {
-	MockGetInstances     GetInstances
-	MockGetLocalInstance GetLocalInstance
-}
-
-// GetInstances sets the expected output for GetInstances() on CloudProvider
-type GetInstances struct {
-	GetInstancesOutput []cloud.Instance
-}
-
-// GetInstances mocks the etcd-bootstrap cloud provider
-func (t CloudProvider) GetInstances() []cloud.Instance {
-	return t.MockGetInstances.GetInstancesOutput
-}
-
-// GetLocalInstance sets the expected output for GetLocalInstance() on CloudProvider
-type GetLocalInstance struct {
-	GetLocalInstance cloud.Instance
-}
-
-// GetLocalInstance mocks the etcd-bootstrap cloud provider
-func (t CloudProvider) GetLocalInstance() cloud.Instance {
-	return t.MockGetLocalInstance.GetLocalInstance
 }

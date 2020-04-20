@@ -71,7 +71,11 @@ func aws(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to generate etcd flags file: %v", err)
 	}
 
-	if err := registrator.Update(aws.GetInstances()); err != nil {
+	instances, err := aws.GetInstances()
+	if err != nil {
+		log.Fatalf("Failed to retrieve instances: %v", err)
+	}
+	if err := registrator.Update(instances); err != nil {
 		log.Fatalf("Failed to register etcd cluster data with cloud registration provider: %v", err)
 	}
 }
@@ -87,13 +91,10 @@ func cloudInstances(asg *aws_cloud.Members) bootstrap.CloudInstances {
 			log.Fatalf("srv-domain-name must be provided")
 		}
 		// Instead of using ASG, use SRV for looking up the instances.
-		cloudInstances, err := srv.Lookup(&srv.Config{
+		cloudInstances := srv.New(&srv.Config{
 			DomainName: srvDomainName,
 			Service:    srvService,
 		})
-		if err != nil {
-			log.Fatalf("Failed to use SRV record: %v", err)
-		}
 		return cloudInstances
 	default:
 		log.Fatalf("Unsupported cluster lookup method %q", clusterLookupMethod)

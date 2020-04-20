@@ -25,21 +25,53 @@ type awsEC2 interface {
 
 // Members of the AWS auto scaling group.
 type Members struct {
-	identityDocument ec2metadata.EC2InstanceIdentityDocument
+	awsSession       *session.Session
+	identityDocument *ec2metadata.EC2InstanceIdentityDocument
 	instances        []cloud.Instance
 }
 
 // GetInstances will return the aws etcd instances
-func (a *Members) GetInstances() []cloud.Instance {
-	return a.instances
+func (m *Members) GetInstances() ([]cloud.Instance, error) {
+	if m.instances == nil {
+		identityDoc, err := m.getIdentityDoc()
+		if err != nil {
+			return nil, fmt.Errorf("unable to get local instance information: %w", err)
+		}
+		config := &aws.Config{Region: aws.String(identityDoc.Region)}
+		awsASGClient := autoscaling.New(m.awsSession, config)
+		awsEC2Client := ec2.New(m.awsSession, config)
+		instances, err := queryInstances(identityDoc, awsASGClient, awsEC2Client)
+		if err != nil {
+			return nil, fmt.Errorf("unable to query ASG: %w", err)
+		}
+		m.instances = instances
+	}
+
+	return m.instances, nil
 }
 
 // GetLocalInstance will get the aws instance etcd bootstrap is running on
-func (a *Members) GetLocalInstance() cloud.Instance {
-	return cloud.Instance{
-		InstanceID: a.identityDocument.InstanceID,
-		PrivateIP:  a.identityDocument.PrivateIP,
+func (m *Members) GetLocalInstance() (cloud.Instance, error) {
+	identityDoc, err := m.getIdentityDoc()
+	if err != nil {
+		return cloud.Instance{}, nil
 	}
+	return cloud.Instance{
+		InstanceID: identityDoc.InstanceID,
+		PrivateIP:  identityDoc.PrivateIP,
+	}, nil
+}
+
+func (m *Members) getIdentityDoc() (*ec2metadata.EC2InstanceIdentityDocument, error) {
+	if m.identityDocument == nil {
+		meta := ec2metadata.New(m.awsSession)
+		identityDoc, err := meta.GetInstanceIdentityDocument()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get AWS local instance data: %v", err)
+		}
+		m.identityDocument = &identityDoc
+	}
+	return m.identityDocument, nil
 }
 
 // NewAWS returns the Members this local instance belongs to.
@@ -48,29 +80,12 @@ func NewAWS() (*Members, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new AWS session: %v", err)
 	}
-
-	meta := ec2metadata.New(awsSession)
-	identityDoc, err := meta.GetInstanceIdentityDocument()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get AWS local instance data: %v", err)
-	}
-
-	config := &aws.Config{Region: aws.String(identityDoc.Region)}
-	awsASGClient := autoscaling.New(awsSession, config)
-	awsEC2Client := ec2.New(awsSession, config)
-
-	instances, err := queryInstances(identityDoc, awsASGClient, awsEC2Client)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Members{
-		identityDocument: identityDoc,
-		instances:        instances,
+		awsSession: awsSession,
 	}, nil
 }
 
-func queryInstances(identity ec2metadata.EC2InstanceIdentityDocument, awsASGClient awsASG, awsEC2Client awsEC2) ([]cloud.Instance, error) {
+func queryInstances(identity *ec2metadata.EC2InstanceIdentityDocument, awsASGClient awsASG, awsEC2Client awsEC2) ([]cloud.Instance, error) {
 	instanceID := identity.InstanceID
 	asgName, err := getASGName(instanceID, awsASGClient)
 	if err != nil {
