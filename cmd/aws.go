@@ -25,7 +25,7 @@ var (
 	route53ZoneID           string
 	dnsHostname             string
 	lbTargetGroupName       string
-	instanceLookupMethod     string
+	instanceLookupMethod    string
 	srvDomainName           string
 	srvService              string
 )
