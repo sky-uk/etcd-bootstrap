@@ -12,8 +12,9 @@ import (
 
 // Bootstrapper bootstraps an etcd process by generating a set of Etcd flags for discovery.
 type Bootstrapper struct {
-	cloud CloudProvider
-	cluster  etcdCluster
+	instances     CloudInstances
+	localInstance CloudLocalInstance
+	cluster       etcdCluster
 }
 
 type clusterState string
@@ -26,10 +27,14 @@ const (
 	existingCluster clusterState = "existing"
 )
 
-// CloudProvider returns instance information for the etcd cluster.
-type CloudProvider interface {
+// CloudInstances returns instance information for the etcd cluster from cloud APIs.
+type CloudInstances interface {
 	// GetInstances returns all the non-terminated instances that will be part of the etcd cluster.
 	GetInstances() []cloud.Instance
+}
+
+// CloudLocalInstance returns instance information for the local instance from cloud APIs.
+type CloudLocalInstance interface {
 	// GetLocalInstance returns the local machine instance.
 	GetLocalInstance() cloud.Instance
 }
@@ -41,11 +46,12 @@ type etcdCluster interface {
 }
 
 // New creates a new bootstrapper.
-func New(cloud CloudProvider) (*Bootstrapper, error) {
-	cluster, err := etcd.New(cloud)
+func New(instances CloudInstances, localInstance CloudLocalInstance) (*Bootstrapper, error) {
+	cluster, err := etcd.New(instances)
 	return &Bootstrapper{
-		cloud: cloud,
-		cluster:  cluster,
+		instances:     instances,
+		localInstance: localInstance,
+		cluster:       cluster,
 	}, err
 }
 
@@ -101,7 +107,7 @@ func (b *Bootstrapper) nodeExistsInCluster() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	localInstanceURL := peerURL(b.cloud.GetLocalInstance().PrivateIP)
+	localInstanceURL := peerURL(b.localInstance.GetLocalInstance().PrivateIP)
 
 	for _, member := range members {
 		if member.PeerURL == localInstanceURL && len(member.Name) > 0 {
@@ -118,7 +124,7 @@ func (b *Bootstrapper) bootstrapNewCluster() string {
 }
 
 func (b *Bootstrapper) getInstancePeerURLs() []string {
-	instances := b.cloud.GetInstances()
+	instances := b.instances.GetInstances()
 
 	var peerURLs []string
 	for _, i := range instances {
@@ -172,7 +178,7 @@ func (b *Bootstrapper) addLocalInstanceToEtcd() error {
 	if err != nil {
 		return err
 	}
-	localInstanceURL := peerURL(b.cloud.GetLocalInstance().PrivateIP)
+	localInstanceURL := peerURL(b.localInstance.GetLocalInstance().PrivateIP)
 
 	if !contains(memberURLs, localInstanceURL) {
 		log.Infof("Adding local instance %s to the etcd member list", localInstanceURL)
@@ -203,7 +209,7 @@ func (b *Bootstrapper) createEtcdConfig(state clusterState, availablePeerURLs []
 	initialCluster := b.constructInitialCluster(availablePeerURLs)
 	envs = append(envs, fmt.Sprintf("ETCD_INITIAL_CLUSTER=%s", initialCluster))
 
-	local := b.cloud.GetLocalInstance()
+	local := b.localInstance.GetLocalInstance()
 	envs = append(envs, fmt.Sprintf("ETCD_NAME=%s", local.InstanceID))
 	envs = append(envs, fmt.Sprintf("ETCD_INITIAL_ADVERTISE_PEER_URLS=%s", peerURL(local.PrivateIP)))
 	envs = append(envs, fmt.Sprintf("ETCD_LISTEN_PEER_URLS=%s", peerURL(local.PrivateIP)))
@@ -215,7 +221,7 @@ func (b *Bootstrapper) createEtcdConfig(state clusterState, availablePeerURLs []
 
 func (b *Bootstrapper) constructInitialCluster(availablePeerURLs []string) string {
 	var initialCluster []string
-	for _, instance := range b.cloud.GetInstances() {
+	for _, instance := range b.instances.GetInstances() {
 		instancePeerURL := peerURL(instance.PrivateIP)
 		if contains(availablePeerURLs, instancePeerURL) {
 			initialCluster = append(initialCluster,

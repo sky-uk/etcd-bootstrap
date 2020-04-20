@@ -71,8 +71,9 @@ var _ = Describe("Bootstrap", func() {
 		By("Returning an error when getting the list of etcd members")
 		etcdCluster.MockMembers.Err = fmt.Errorf("failed to get etcd members")
 		bootstrapperClient := Bootstrapper{
-			cloud: cloudProvider,
-			cluster:  etcdCluster,
+			instances:     cloudProvider,
+			localInstance: cloudProvider,
+			cluster:       etcdCluster,
 		}
 
 		_, err := bootstrapperClient.GenerateEtcdFlags()
@@ -102,8 +103,9 @@ var _ = Describe("Bootstrap", func() {
 		By("Returning an error when trying to remove an etcd member")
 		etcdCluster.MockRemoveMember.Err = fmt.Errorf("failed to remove etcd members")
 		bootstrapperClient := Bootstrapper{
-			cloud: cloudProvider,
-			cluster:  etcdCluster,
+			instances:     cloudProvider,
+			localInstance: cloudProvider,
+			cluster:       etcdCluster,
 		}
 
 		_, err := bootstrapperClient.GenerateEtcdFlags()
@@ -136,8 +138,9 @@ var _ = Describe("Bootstrap", func() {
 		By("Returning an error when attempting to list all etcd members")
 		etcdCluster.MockAddMember.Err = fmt.Errorf("failed to add etcd member")
 		bootstrapperClient := Bootstrapper{
-			cloud: cloudProvider,
-			cluster:  etcdCluster,
+			instances:     cloudProvider,
+			localInstance: cloudProvider,
+			cluster:       etcdCluster,
 		}
 
 		_, err := bootstrapperClient.GenerateEtcdFlags()
@@ -166,8 +169,9 @@ var _ = Describe("Bootstrap", func() {
 		By("Returning a list of etcd members that is empty")
 		etcdCluster.MockMembers.MembersOutput = []etcd.Member{}
 		bootstrapperClient := Bootstrapper{
-			cloud: cloudProvider,
-			cluster:  etcdCluster,
+			instances:     cloudProvider,
+			localInstance: cloudProvider,
+			cluster:       etcdCluster,
 		}
 
 		etcdFlags, err := bootstrapperClient.GenerateEtcdFlags()
@@ -217,8 +221,9 @@ var _ = Describe("Bootstrap", func() {
 			},
 		}
 		bootstrapperClient := Bootstrapper{
-			cloud: cloudProvider,
-			cluster:  etcdCluster,
+			instances:     cloudProvider,
+			localInstance: cloudProvider,
+			cluster:       etcdCluster,
 		}
 
 		etcdFlags, err := bootstrapperClient.GenerateEtcdFlags()
@@ -271,8 +276,9 @@ var _ = Describe("Bootstrap", func() {
 		By("Expecting a RemoveMember() call to be made with the old instance PeerURL")
 		etcdCluster.MockRemoveMember.ExpectedInputs = []string{"http://192.168.0.1:2380"}
 		bootstrapperClient := Bootstrapper{
-			cloud: cloudProvider,
-			cluster:  etcdCluster,
+			instances:     cloudProvider,
+			localInstance: cloudProvider,
+			cluster:       etcdCluster,
 		}
 
 		etcdFlags, err := bootstrapperClient.GenerateEtcdFlags()
@@ -321,8 +327,9 @@ var _ = Describe("Bootstrap", func() {
 			},
 		}
 		bootstrapperClient := Bootstrapper{
-			cloud: cloudProvider,
-			cluster:  etcdCluster,
+			instances:     cloudProvider,
+			localInstance: cloudProvider,
+			cluster:       etcdCluster,
 		}
 
 		etcdFlags, err := bootstrapperClient.GenerateEtcdFlags()

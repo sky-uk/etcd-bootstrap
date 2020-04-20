@@ -78,7 +78,7 @@ func vmware(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to create VMware provider: %v", err)
 	}
 
-	bootstrapper, err := bootstrap.New(vmwareProvider)
+	bootstrapper, err := bootstrap.New(vmwareProvider, vmwareProvider)
 	if err != nil {
 		log.Fatalf("Failed to create etcd bootstrapper: %v", err)
 	}

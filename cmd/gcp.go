@@ -42,7 +42,7 @@ func gcp(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to create GCP provider: %v", err)
 	}
 
-	bootstrapper, err := bootstrap.New(gcpProvider)
+	bootstrapper, err := bootstrap.New(gcpProvider, gcpProvider)
 	if err != nil {
 		log.Fatalf("Failed to create etcd bootstrapper: %v", err)
 	}
