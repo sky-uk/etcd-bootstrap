@@ -1,13 +1,22 @@
 package etcd
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
+	"net"
+	"net/http"
+	"os"
+	"time"
 
 	"github.com/coreos/etcd/client"
 	log "github.com/sirupsen/logrus"
 	"github.com/sky-uk/etcd-bootstrap/cloud"
 	"golang.org/x/net/context"
 )
+
+const timeout = 5 * time.Second
 
 type etcdMembersAPI interface {
 	List(ctx context.Context) ([]client.Member, error)
@@ -17,11 +26,15 @@ type etcdMembersAPI interface {
 
 // Cluster represents an etcd cluster.
 type Cluster struct {
+	instances Instances
+	protocol  string
+	transport client.CancelableTransport
+	// membersAPIClient is the cached API client. Don't use it directly, use list/add/remove instead.
 	membersAPIClient etcdMembersAPI
 }
 
-// Provider of cloud node instance information.
-type Provider interface {
+// Instances returns the instances in the cluster.
+type Instances interface {
 	// GetInstances returns all the non-terminated instances that will be part of the etcd cluster.
 	GetInstances() ([]cloud.Instance, error)
 }
@@ -32,29 +45,123 @@ type Member struct {
 	PeerURL string
 }
 
+// Option for New.
+type Option func(c *Cluster) error
+
+// WithTLS enables client TLS for talking to the etcd cluster.
+func WithTLS(clientCA, clientCert, clientKey string) Option {
+	return func(c *Cluster) error {
+		vals := []struct {
+			name, val string
+		}{
+			{"clientCA", clientCA},
+			{"clientCert", clientCert},
+			{"clientKey", clientKey},
+		}
+		for _, val := range vals {
+			if _, err := os.Stat(val.val); err != nil {
+				return fmt.Errorf("%s is inaccessible: %w", val.val, err)
+			}
+		}
+
+		// Set up client certificates.
+		cert, err := tls.LoadX509KeyPair(clientCert, clientKey)
+		if err != nil {
+			return fmt.Errorf("unable to load client certs: %w", err)
+		}
+		caCert, err := ioutil.ReadFile(clientCA)
+		if err != nil {
+			return fmt.Errorf("unable to load client ca: %w", err)
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+		tlsConfig := &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			RootCAs:      caCertPool,
+		}
+		tlsConfig.BuildNameToCertificate()
+
+		// Base settings are copied from client.DefaultTransport.
+		c.transport = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout: 10 * time.Second,
+			TLSClientConfig:     tlsConfig,
+		}
+		c.protocol = "https"
+		return nil
+	}
+}
+
 // New returns a cluster object for interacting with the etcd cluster API.
-func New(provider Provider) (*Cluster, error) {
-	instances, err := provider.GetInstances()
+func New(instances Instances, opts ...Option) (*Cluster, error) {
+	c := &Cluster{
+		instances: instances,
+		protocol:  "http",
+		transport: client.DefaultTransport,
+	}
+	for _, opt := range opts {
+		if err := opt(c); err != nil {
+			return nil, err
+		}
+	}
+	return c, nil
+}
+
+func (c *Cluster) membersAPI() (etcdMembersAPI, error) {
+	if c.membersAPIClient == nil {
+		instances, err := c.instances.GetInstances()
+		if err != nil {
+			return nil, err
+		}
+
+		var endpoints []string
+		for _, instance := range instances {
+			endpoints = append(endpoints, fmt.Sprintf("%s://%s:2379", c.protocol, instance.Endpoint))
+		}
+
+		cl, err := client.New(client.Config{Endpoints: endpoints})
+		if err != nil {
+			return nil, err
+		}
+
+		c.membersAPIClient = client.NewMembersAPI(cl)
+	}
+	return c.membersAPIClient, nil
+}
+
+func (c *Cluster) list(ctx context.Context) ([]client.Member, error) {
+	api, err := c.membersAPI()
 	if err != nil {
 		return nil, err
 	}
+	return api.List(ctx)
+}
 
-	var endpoints []string
-	for _, instance := range instances {
-		endpoints = append(endpoints, fmt.Sprintf("http://%s:2379", instance.Endpoint))
-	}
-
-	c, err := client.New(client.Config{Endpoints: endpoints})
+func (c *Cluster) add(ctx context.Context, peerURL string) (*client.Member, error) {
+	api, err := c.membersAPI()
 	if err != nil {
 		return nil, err
 	}
+	return api.Add(ctx, peerURL)
+}
 
-	return &Cluster{client.NewMembersAPI(c)}, nil
+func (c *Cluster) remove(ctx context.Context, mID string) error {
+	api, err := c.membersAPI()
+	if err != nil {
+		return err
+	}
+	return api.Remove(ctx, mID)
 }
 
 // Members returns the cluster members.
-func (e *Cluster) Members() ([]Member, error) {
-	etcdMembers, err := e.membersAPIClient.List(context.Background())
+func (c *Cluster) Members() ([]Member, error) {
+	ctx, cancelFn := context.WithTimeout(context.Background(), timeout)
+	defer cancelFn()
+	etcdMembers, err := c.list(ctx)
 	if err != nil {
 		log.Infof("Detected cluster errors, this is normal when bootstrapping a new cluster: %v", err)
 	}
@@ -75,14 +182,18 @@ func (e *Cluster) Members() ([]Member, error) {
 }
 
 // AddMember adds a new member to the cluster by its peer URL.
-func (e *Cluster) AddMember(peerURL string) error {
-	_, err := e.membersAPIClient.Add(context.Background(), peerURL)
+func (c *Cluster) AddMember(peerURL string) error {
+	ctx, cancelFn := context.WithTimeout(context.Background(), timeout)
+	defer cancelFn()
+	_, err := c.add(ctx, peerURL)
 	return err
 }
 
 // RemoveMember removes a member of the cluster by its peer URL.
-func (e *Cluster) RemoveMember(peerURL string) error {
-	members, err := e.membersAPIClient.List(context.Background())
+func (c *Cluster) RemoveMember(peerURL string) error {
+	ctx, cancelFn := context.WithTimeout(context.Background(), timeout)
+	defer cancelFn()
+	members, err := c.list(ctx)
 	if err != nil {
 		return err
 	}
@@ -92,7 +203,7 @@ func (e *Cluster) RemoveMember(peerURL string) error {
 			return err
 		}
 		if member.PeerURLs[0] == peerURL {
-			return e.membersAPIClient.Remove(context.Background(), member.ID)
+			return c.remove(ctx, member.ID)
 		}
 	}
 

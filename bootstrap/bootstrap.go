@@ -12,9 +12,11 @@ import (
 
 // Bootstrapper bootstraps an etcd process by generating a set of Etcd flags for discovery.
 type Bootstrapper struct {
-	instances     CloudInstances
-	localInstance CloudLocalInstance
-	cluster       etcdCluster
+	instances       CloudInstances
+	localInstance   CloudLocalInstance
+	cluster         EtcdCluster
+	protocol        string
+	additionalFlags []string
 }
 
 type clusterState string
@@ -39,20 +41,65 @@ type CloudLocalInstance interface {
 	GetLocalInstance() (cloud.Instance, error)
 }
 
-type etcdCluster interface {
+// EtcdCluster returns information from the etcd cluster API.
+type EtcdCluster interface {
 	Members() ([]etcd.Member, error)
 	AddMember(string) error
 	RemoveMember(string) error
 }
 
+// Option for configuring the bootstrapper.
+type Option func(*Bootstrapper) error
+
+// WithTLS enables TLS for peer and client endpoints.
+func WithTLS(clientCA, clientCert, clientKey, peerCA, peerCert, peerKey string) Option {
+	return func(b *Bootstrapper) error {
+		vals := []struct {
+			name, val string
+		}{
+			{"clientCA", clientCA},
+			{"clientCert", clientCert},
+			{"clientKey", clientKey},
+			{"peerCA", peerCA},
+			{"peerCert", peerCert},
+			{"peerKey", peerKey},
+		}
+		for _, val := range vals {
+			if val.val == "" {
+				return fmt.Errorf("%s must be provided, but was empty", val.name)
+			}
+		}
+
+		flags := []string{
+			"ETCD_CLIENT_CERT_AUTH=true",
+			"ETCD_TRUSTED_CA_FILE=" + clientCA,
+			"ETCD_CERT_FILE=" + clientCert,
+			"ETCD_KEY_FILE=" + clientKey,
+			"ETCD_PEER_CLIENT_CERT_AUTH=true",
+			"ETCD_PEER_TRUSTED_CA_FILE=" + peerCA,
+			"ETCD_PEER_CERT_FILE=" + peerCert,
+			"ETCD_PEER_KEY_FILE=" + peerKey,
+		}
+		b.additionalFlags = append(b.additionalFlags, flags...)
+		b.protocol = "https"
+		return nil
+	}
+}
+
 // New creates a new bootstrapper.
-func New(instances CloudInstances, localInstance CloudLocalInstance) (*Bootstrapper, error) {
-	cluster, err := etcd.New(instances)
-	return &Bootstrapper{
+func New(instances CloudInstances, localInstance CloudLocalInstance, cluster EtcdCluster, opts ...Option) (*Bootstrapper, error) {
+	bootstrapper := &Bootstrapper{
 		instances:     instances,
 		localInstance: localInstance,
 		cluster:       cluster,
-	}, err
+		protocol:      "http",
+	}
+	for _, opt := range opts {
+		if err := opt(bootstrapper); err != nil {
+			return nil, err
+		}
+	}
+	return bootstrapper, nil
 }
 
 // GenerateEtcdFlags returns a string containing the generated etcd flags.
@@ -111,7 +158,7 @@ func (b *Bootstrapper) nodeExistsInCluster() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	localInstanceURL := peerURL(localInstance.Endpoint)
+	localInstanceURL := b.peerURL(localInstance.Endpoint)
 
 	for _, member := range members {
 		if member.PeerURL == localInstanceURL && len(member.Name) > 0 {
@@ -138,7 +185,7 @@ func (b *Bootstrapper) getInstancePeerURLs() ([]string, error) {
 
 	var peerURLs []string
 	for _, i := range instances {
-		peerURLs = append(peerURLs, peerURL(i.Endpoint))
+		peerURLs = append(peerURLs, b.peerURL(i.Endpoint))
 	}
 
 	return peerURLs, nil
@@ -195,7 +242,7 @@ func (b *Bootstrapper) addLocalInstanceToEtcd() error {
 	if err != nil {
 		return err
 	}
-	localInstanceURL := peerURL(localInstance.Endpoint)
+	localInstanceURL := b.peerURL(localInstance.Endpoint)
 
 	if !contains(memberURLs, localInstanceURL) {
 		log.Infof("Adding local instance %s to the etcd member list", localInstanceURL)
@@ -234,11 +281,14 @@ func (b *Bootstrapper) createEtcdConfig(state clusterState, availablePeerURLs []
 		return "", err
 	}
 	envs = append(envs, fmt.Sprintf("ETCD_NAME=%s", local.Name))
-	envs = append(envs, fmt.Sprintf("ETCD_INITIAL_ADVERTISE_PEER_URLS=%s", peerURL(local.Endpoint)))
-	envs = append(envs, fmt.Sprintf("ETCD_LISTEN_PEER_URLS=%s", peerURL(local.Endpoint)))
-	envs = append(envs, fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%s,%s", clientURL(local.Endpoint), clientURL("127.0.0.1")))
-	envs = append(envs, fmt.Sprintf("ETCD_ADVERTISE_CLIENT_URLS=%s", clientURL(local.Endpoint)))
+	envs = append(envs, fmt.Sprintf("ETCD_INITIAL_ADVERTISE_PEER_URLS=%s", b.peerURL(local.Endpoint)))
+	envs = append(envs, fmt.Sprintf("ETCD_LISTEN_PEER_URLS=%s", b.peerURL(local.Endpoint)))
+	envs = append(envs, fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%s,%s", b.clientURL(local.Endpoint), b.clientURL("127.0.0.1")))
+	envs = append(envs, fmt.Sprintf("ETCD_ADVERTISE_CLIENT_URLS=%s", b.clientURL(local.Endpoint)))
 
+	for _, flag := range b.additionalFlags {
+		envs = append(envs, flag)
+	}
 	return strings.Join(envs, "\n") + "\n", nil
 }
 
@@ -249,7 +299,7 @@ func (b *Bootstrapper) constructInitialCluster(availablePeerURLs []string) (stri
 	}
 	var initialCluster []string
 	for _, instance := range instances {
-		instancePeerURL := peerURL(instance.Endpoint)
+		instancePeerURL := b.peerURL(instance.Endpoint)
 		if contains(availablePeerURLs, instancePeerURL) {
 			initialCluster = append(initialCluster,
 				fmt.Sprintf("%s=%s", instance.Name, instancePeerURL))
@@ -263,12 +313,12 @@ func writeToFile(outputFilename string, data string) error {
 	return ioutil.WriteFile(outputFilename, []byte(data), 0644)
 }
 
-func peerURL(ip string) string {
-	return fmt.Sprintf("http://%s:2380", ip)
+func (b *Bootstrapper) peerURL(host string) string {
+	return fmt.Sprintf("%s://%s:2380", b.protocol, host)
 }
 
-func clientURL(ip string) string {
-	return fmt.Sprintf("http://%s:2379", ip)
+func (b *Bootstrapper) clientURL(host string) string {
+	return fmt.Sprintf("%s://%s:2379", b.protocol, host)
 }
 
 func contains(strings []string, value string) bool {

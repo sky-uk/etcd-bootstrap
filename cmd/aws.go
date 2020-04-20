@@ -6,6 +6,7 @@ import (
 
 	"github.com/sky-uk/etcd-bootstrap/bootstrap"
 	"github.com/sky-uk/etcd-bootstrap/cloud"
+	"github.com/sky-uk/etcd-bootstrap/etcd"
 
 	log "github.com/sirupsen/logrus"
 	aws_cloud "github.com/sky-uk/etcd-bootstrap/cloud/aws"
@@ -29,25 +30,37 @@ var (
 	instanceLookupMethod    string
 	srvDomainName           string
 	srvService              string
+	enableTLS               bool
+	clientCA                string
+	clientCert              string
+	clientKey               string
+	peerCA                  string
+	peerCert                string
+	peerKey                 string
 )
 
 func init() {
 	RootCmd.AddCommand(awsCmd)
-
-	awsCmd.Flags().StringVarP(&awsRegistrationProvider, "registration-provider", "r", "noop", fmt.Sprintf(
+	f := awsCmd.Flags()
+	f.StringVarP(&awsRegistrationProvider, "registration-provider", "r", "noop", fmt.Sprintf(
 		"automatic registration provider to use, options are: noop, lb, route53"))
-	awsCmd.Flags().StringVar(&route53ZoneID, "r53-zone-id", "",
+	f.StringVar(&route53ZoneID, "r53-zone-id", "",
 		"zone id for automatic registration for registration-provider=route53")
-	awsCmd.Flags().StringVar(&dnsHostname, "dns-hostname", "",
+	f.StringVar(&dnsHostname, "dns-hostname", "",
 		"hostname to set to the etcd cluster when registration-provider=route53")
-	awsCmd.Flags().StringVar(&lbTargetGroupName, "lb-target-group-name", "",
+	f.StringVar(&lbTargetGroupName, "lb-target-group-name", "",
 		"loadbalancer target group name to use when --registration-provider=lb")
-	awsCmd.Flags().StringVar(&instanceLookupMethod, "instance-lookup-method", "asg",
+	f.StringVar(&instanceLookupMethod, "instance-lookup-method", "asg",
 		"method for looking up instances in the cluster, options are: asg, srv")
-	awsCmd.Flags().StringVar(&srvDomainName, "srv-domain-name", "",
-		"domain name to use for instance-lookup-method=srv")
-	awsCmd.Flags().StringVar(&srvService, "srv-service", "etcd-bootstrap",
-		"service to use for instance-lookup-method=srv")
+	f.StringVar(&srvDomainName, "srv-domain-name", "", "domain name to use for instance-lookup-method=srv")
+	f.StringVar(&srvService, "srv-service", "etcd-bootstrap", "service to use for instance-lookup-method=srv")
+	f.BoolVar(&enableTLS, "enable-tls", false, "enable TLS")
+	f.StringVar(&clientCA, "tls-client-ca", "", "path to client CA")
+	f.StringVar(&clientCert, "tls-client-cert", "", "path to client certificate")
+	f.StringVar(&clientKey, "tls-client-key", "", "path to client key")
+	f.StringVar(&peerCA, "tls-peer-ca", "", "path to peer CA")
+	f.StringVar(&peerCert, "tls-peer-cert", "", "path to peer certificate")
+	f.StringVar(&peerKey, "tls-peer-key", "", "path to peer key")
 }
 
 func aws(cmd *cobra.Command, args []string) {
@@ -57,7 +70,13 @@ func aws(cmd *cobra.Command, args []string) {
 	}
 
 	cloudInstances := createCloudInstances(aws)
-	bootstrapper, err := bootstrap.New(cloudInstances, aws)
+	etcdCluster := etcdCluster(cloudInstances)
+
+	var opts []bootstrap.Option
+	if enableTLS {
+		opts = []bootstrap.Option{bootstrap.WithTLS(clientCA, clientCert, clientKey, peerCA, peerCert, peerKey)}
+	}
+	bootstrapper, err := bootstrap.New(cloudInstances, aws, etcdCluster, opts...)
 	if err != nil {
 		log.Fatalf("Failed to create etcd bootstrapper: %v", err)
 	}
@@ -119,6 +138,18 @@ func registerInstances(cloudInstances bootstrap.CloudInstances) {
 
 type registrationProvider interface {
 	Update([]cloud.Instance) error
+}
+
+func etcdCluster(instances etcd.Instances) *etcd.Cluster {
+	var etcdOpts []etcd.Option
+	if enableTLS {
+		etcdOpts = []etcd.Option{etcd.WithTLS(clientCA, clientCert, clientKey)}
+	}
+	etcdCluster, err := etcd.New(instances, etcdOpts...)
+	if err != nil {
+		log.Fatalf("Failed to create etcd cluster API: %v", err)
+	}
+	return etcdCluster
 }
 
 func initialiseAWSRegistrationProvider() registrationProvider {

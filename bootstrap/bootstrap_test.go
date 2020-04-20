@@ -30,14 +30,15 @@ func TestBootstrap(t *testing.T) {
 
 var _ = Describe("Bootstrap", func() {
 	var (
-		cloudProvider CloudProvider
-		etcdCluster   EtcdCluster
+		cloudProvider *CloudProvider
+		etcdCluster   *MockEtcdCluster
+		bootstrapper  *Bootstrapper
 	)
 
 	BeforeEach(func() {
-		By("Returning the constant instance values")
-		cloudProvider = CloudProvider{
-			MockGetLocalInstance: GetLocalInstance{
+		cloudProvider = &CloudProvider{
+			MockGetInstances: &GetInstances{},
+			MockGetLocalInstance: &GetLocalInstance{
 				GetLocalInstance: cloud.Instance{
 					Name:     localInstanceID,
 					Endpoint: localPrivateIP,
@@ -45,17 +46,27 @@ var _ = Describe("Bootstrap", func() {
 			},
 		}
 
-		By("Only calling AddMember() from the local instance using the constant values")
-		etcdCluster = EtcdCluster{
-			MockAddMember: AddMember{
+		etcdCluster = &MockEtcdCluster{
+			MockMembers: &Members{},
+			MockAddMember: &AddMember{
 				ExpectedInput: localPeerURL,
 			},
+			MockRemoveMember: &RemoveMember{},
+		}
+	})
+
+	JustBeforeEach(func() {
+		bootstrapper = &Bootstrapper{
+			instances:     cloudProvider,
+			localInstance: cloudProvider,
+			cluster:       etcdCluster,
+			protocol:      "http",
 		}
 	})
 
 	It("helper functions work", func() {
-		Expect(peerURL(localPrivateIP)).To(Equal(localPeerURL))
-		Expect(clientURL(localPrivateIP)).To(Equal(localClientURL))
+		Expect(bootstrapper.peerURL(localPrivateIP)).To(Equal(localPeerURL))
+		Expect(bootstrapper.clientURL(localPrivateIP)).To(Equal(localClientURL))
 	})
 
 	It("fails when it cannot get etcd members", func() {
@@ -69,14 +80,8 @@ var _ = Describe("Bootstrap", func() {
 
 		By("Returning an error when getting the list of etcd members")
 		etcdCluster.MockMembers.Err = fmt.Errorf("failed to get etcd members")
-		bootstrapperClient := Bootstrapper{
-			instances:     cloudProvider,
-			localInstance: cloudProvider,
-			cluster:       etcdCluster,
-		}
-
-		_, err := bootstrapperClient.GenerateEtcdFlags()
-		Expect(err).ToNot(BeNil())
+		_, err := bootstrapper.GenerateEtcdFlags()
+		Expect(err).To(Not(Succeed()))
 	})
 
 	It("does not fail when it cannot remove member", func() {
@@ -101,13 +106,7 @@ var _ = Describe("Bootstrap", func() {
 
 		By("Returning an error when trying to remove an etcd member")
 		etcdCluster.MockRemoveMember.Err = fmt.Errorf("failed to remove etcd members")
-		bootstrapperClient := Bootstrapper{
-			instances:     cloudProvider,
-			localInstance: cloudProvider,
-			cluster:       etcdCluster,
-		}
-
-		_, err := bootstrapperClient.GenerateEtcdFlags()
+		_, err := bootstrapper.GenerateEtcdFlags()
 
 		By("Do not fail as it may be down to an etcd quorum issue")
 		Expect(err).To(BeNil())
@@ -136,13 +135,7 @@ var _ = Describe("Bootstrap", func() {
 
 		By("Returning an error when attempting to list all etcd members")
 		etcdCluster.MockAddMember.Err = fmt.Errorf("failed to add etcd member")
-		bootstrapperClient := Bootstrapper{
-			instances:     cloudProvider,
-			localInstance: cloudProvider,
-			cluster:       etcdCluster,
-		}
-
-		_, err := bootstrapperClient.GenerateEtcdFlags()
+		_, err := bootstrapper.GenerateEtcdFlags()
 
 		By("Do not fail as it may be down to an etcd quorum issue")
 		Expect(err).ToNot(BeNil())
@@ -167,13 +160,7 @@ var _ = Describe("Bootstrap", func() {
 
 		By("Returning a list of etcd members that is empty")
 		etcdCluster.MockMembers.MembersOutput = []etcd.Member{}
-		bootstrapperClient := Bootstrapper{
-			instances:     cloudProvider,
-			localInstance: cloudProvider,
-			cluster:       etcdCluster,
-		}
-
-		etcdFlags, err := bootstrapperClient.GenerateEtcdFlags()
+		etcdFlags, err := bootstrapper.GenerateEtcdFlags()
 		flags := strings.Split(etcdFlags, "\n")
 		Expect(err).To(BeNil())
 		Expect(flags).To(ContainElement("ETCD_INITIAL_CLUSTER_STATE=new"))
@@ -183,7 +170,7 @@ var _ = Describe("Bootstrap", func() {
 		Expect(flags).To(ContainElement("ETCD_NAME=" + localInstanceID))
 		Expect(flags).To(ContainElement("ETCD_INITIAL_ADVERTISE_PEER_URLS=" + localPeerURL))
 		Expect(flags).To(ContainElement("ETCD_LISTEN_PEER_URLS=" + localPeerURL))
-		Expect(flags).To(ContainElement(fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%v,%v", localClientURL, clientURL("127.0.0.1"))))
+		Expect(flags).To(ContainElement(fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%v,%v", localClientURL, bootstrapper.clientURL("127.0.0.1"))))
 		Expect(flags).To(ContainElement("ETCD_ADVERTISE_CLIENT_URLS=" + localClientURL))
 	})
 
@@ -219,13 +206,8 @@ var _ = Describe("Bootstrap", func() {
 				PeerURL: "http://192.168.0.2:2380",
 			},
 		}
-		bootstrapperClient := Bootstrapper{
-			instances:     cloudProvider,
-			localInstance: cloudProvider,
-			cluster:       etcdCluster,
-		}
 
-		etcdFlags, err := bootstrapperClient.GenerateEtcdFlags()
+		etcdFlags, err := bootstrapper.GenerateEtcdFlags()
 		flags := strings.Split(etcdFlags, "\n")
 		Expect(err).To(BeNil())
 		Expect(flags).To(ContainElement("ETCD_INITIAL_CLUSTER_STATE=new"))
@@ -235,7 +217,7 @@ var _ = Describe("Bootstrap", func() {
 		Expect(flags).To(ContainElement("ETCD_NAME=" + localInstanceID))
 		Expect(flags).To(ContainElement("ETCD_INITIAL_ADVERTISE_PEER_URLS=" + localPeerURL))
 		Expect(flags).To(ContainElement("ETCD_LISTEN_PEER_URLS=" + localPeerURL))
-		Expect(flags).To(ContainElement(fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%v,%v", localClientURL, clientURL("127.0.0.1"))))
+		Expect(flags).To(ContainElement(fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%v,%v", localClientURL, bootstrapper.clientURL("127.0.0.1"))))
 		Expect(flags).To(ContainElement("ETCD_ADVERTISE_CLIENT_URLS=" + localClientURL))
 	})
 
@@ -274,13 +256,8 @@ var _ = Describe("Bootstrap", func() {
 
 		By("Expecting a RemoveMember() call to be made with the old instance PeerURL")
 		etcdCluster.MockRemoveMember.ExpectedInputs = []string{"http://192.168.0.1:2380"}
-		bootstrapperClient := Bootstrapper{
-			instances:     cloudProvider,
-			localInstance: cloudProvider,
-			cluster:       etcdCluster,
-		}
 
-		etcdFlags, err := bootstrapperClient.GenerateEtcdFlags()
+		etcdFlags, err := bootstrapper.GenerateEtcdFlags()
 		flags := strings.Split(etcdFlags, "\n")
 		Expect(err).To(BeNil())
 		Expect(flags).To(ContainElement("ETCD_INITIAL_CLUSTER_STATE=existing"))
@@ -289,7 +266,7 @@ var _ = Describe("Bootstrap", func() {
 		Expect(flags).To(ContainElement("ETCD_NAME=" + localInstanceID))
 		Expect(flags).To(ContainElement("ETCD_INITIAL_ADVERTISE_PEER_URLS=" + localPeerURL))
 		Expect(flags).To(ContainElement("ETCD_LISTEN_PEER_URLS=" + localPeerURL))
-		Expect(flags).To(ContainElement(fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%v,%v", localClientURL, clientURL("127.0.0.1"))))
+		Expect(flags).To(ContainElement(fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%v,%v", localClientURL, bootstrapper.clientURL("127.0.0.1"))))
 		Expect(flags).To(ContainElement("ETCD_ADVERTISE_CLIENT_URLS=" + localClientURL))
 	})
 
@@ -325,13 +302,8 @@ var _ = Describe("Bootstrap", func() {
 				PeerURL: "http://192.168.0.2:2380",
 			},
 		}
-		bootstrapperClient := Bootstrapper{
-			instances:     cloudProvider,
-			localInstance: cloudProvider,
-			cluster:       etcdCluster,
-		}
 
-		etcdFlags, err := bootstrapperClient.GenerateEtcdFlags()
+		etcdFlags, err := bootstrapper.GenerateEtcdFlags()
 		flags := strings.Split(etcdFlags, "\n")
 		Expect(err).To(BeNil())
 
@@ -343,16 +315,16 @@ var _ = Describe("Bootstrap", func() {
 		Expect(flags).To(ContainElement("ETCD_NAME=" + localInstanceID))
 		Expect(flags).To(ContainElement("ETCD_INITIAL_ADVERTISE_PEER_URLS=" + localPeerURL))
 		Expect(flags).To(ContainElement("ETCD_LISTEN_PEER_URLS=" + localPeerURL))
-		Expect(flags).To(ContainElement(fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%v,%v", localClientURL, clientURL("127.0.0.1"))))
+		Expect(flags).To(ContainElement(fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%v,%v", localClientURL, bootstrapper.clientURL("127.0.0.1"))))
 		Expect(flags).To(ContainElement("ETCD_ADVERTISE_CLIENT_URLS=" + localClientURL))
 	})
 })
 
-// EtcdCluster for mocking calls to the etcd cluster package client
-type EtcdCluster struct {
-	MockMembers      Members
-	MockRemoveMember RemoveMember
-	MockAddMember    AddMember
+// MockEtcdCluster for mocking calls to the etcd cluster package client
+type MockEtcdCluster struct {
+	MockMembers      *Members
+	MockRemoveMember *RemoveMember
+	MockAddMember    *AddMember
 }
 
 // Members sets the expected output for Members() on EtcdCluster
@@ -362,7 +334,7 @@ type Members struct {
 }
 
 // Members mocks the etcd cluster package client
-func (t EtcdCluster) Members() ([]etcd.Member, error) {
+func (t MockEtcdCluster) Members() ([]etcd.Member, error) {
 	return t.MockMembers.MembersOutput, t.MockMembers.Err
 }
 
@@ -373,7 +345,7 @@ type RemoveMember struct {
 }
 
 // RemoveMember mocks the etcd cluster package client
-func (t EtcdCluster) RemoveMember(peerURL string) error {
+func (t MockEtcdCluster) RemoveMember(peerURL string) error {
 	Expect(t.MockRemoveMember.ExpectedInputs).To(ContainElement(peerURL))
 	return t.MockRemoveMember.Err
 }
@@ -385,15 +357,15 @@ type AddMember struct {
 }
 
 // AddMember mocks the etcd cluster package client
-func (t EtcdCluster) AddMember(peerURL string) error {
+func (t MockEtcdCluster) AddMember(peerURL string) error {
 	Expect(peerURL).To(Equal(t.MockAddMember.ExpectedInput))
 	return t.MockAddMember.Err
 }
 
 // CloudProvider for mocking calls to an etcd-bootstrap cloud provider
 type CloudProvider struct {
-	MockGetInstances     GetInstances
-	MockGetLocalInstance GetLocalInstance
+	MockGetInstances     *GetInstances
+	MockGetLocalInstance *GetLocalInstance
 }
 
 // GetInstances sets the expected output for GetInstances() on CloudProvider
