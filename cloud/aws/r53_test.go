@@ -34,7 +34,7 @@ var _ = Describe("Route53 Registration Provider", func() {
 		var route53Instances []*route53.ResourceRecord
 		for _, testInstance := range testInstances {
 			route53Instances = append(route53Instances, &route53.ResourceRecord{
-				Value: aws.String(testInstance.PrivateIP),
+				Value: aws.String(testInstance.Endpoint),
 			})
 		}
 

@@ -111,7 +111,7 @@ func (b *Bootstrapper) nodeExistsInCluster() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	localInstanceURL := peerURL(localInstance.PrivateIP)
+	localInstanceURL := peerURL(localInstance.Endpoint)
 
 	for _, member := range members {
 		if member.PeerURL == localInstanceURL && len(member.Name) > 0 {
@@ -138,7 +138,7 @@ func (b *Bootstrapper) getInstancePeerURLs() ([]string, error) {
 
 	var peerURLs []string
 	for _, i := range instances {
-		peerURLs = append(peerURLs, peerURL(i.PrivateIP))
+		peerURLs = append(peerURLs, peerURL(i.Endpoint))
 	}
 
 	return peerURLs, nil
@@ -195,7 +195,7 @@ func (b *Bootstrapper) addLocalInstanceToEtcd() error {
 	if err != nil {
 		return err
 	}
-	localInstanceURL := peerURL(localInstance.PrivateIP)
+	localInstanceURL := peerURL(localInstance.Endpoint)
 
 	if !contains(memberURLs, localInstanceURL) {
 		log.Infof("Adding local instance %s to the etcd member list", localInstanceURL)
@@ -233,11 +233,11 @@ func (b *Bootstrapper) createEtcdConfig(state clusterState, availablePeerURLs []
 	if err != nil {
 		return "", err
 	}
-	envs = append(envs, fmt.Sprintf("ETCD_NAME=%s", local.InstanceID))
-	envs = append(envs, fmt.Sprintf("ETCD_INITIAL_ADVERTISE_PEER_URLS=%s", peerURL(local.PrivateIP)))
-	envs = append(envs, fmt.Sprintf("ETCD_LISTEN_PEER_URLS=%s", peerURL(local.PrivateIP)))
-	envs = append(envs, fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%s,%s", clientURL(local.PrivateIP), clientURL("127.0.0.1")))
-	envs = append(envs, fmt.Sprintf("ETCD_ADVERTISE_CLIENT_URLS=%s", clientURL(local.PrivateIP)))
+	envs = append(envs, fmt.Sprintf("ETCD_NAME=%s", local.Name))
+	envs = append(envs, fmt.Sprintf("ETCD_INITIAL_ADVERTISE_PEER_URLS=%s", peerURL(local.Endpoint)))
+	envs = append(envs, fmt.Sprintf("ETCD_LISTEN_PEER_URLS=%s", peerURL(local.Endpoint)))
+	envs = append(envs, fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%s,%s", clientURL(local.Endpoint), clientURL("127.0.0.1")))
+	envs = append(envs, fmt.Sprintf("ETCD_ADVERTISE_CLIENT_URLS=%s", clientURL(local.Endpoint)))
 
 	return strings.Join(envs, "\n") + "\n", nil
 }
@@ -249,10 +249,10 @@ func (b *Bootstrapper) constructInitialCluster(availablePeerURLs []string) (stri
 	}
 	var initialCluster []string
 	for _, instance := range instances {
-		instancePeerURL := peerURL(instance.PrivateIP)
+		instancePeerURL := peerURL(instance.Endpoint)
 		if contains(availablePeerURLs, instancePeerURL) {
 			initialCluster = append(initialCluster,
-				fmt.Sprintf("%s=%s", instance.InstanceID, instancePeerURL))
+				fmt.Sprintf("%s=%s", instance.Name, instancePeerURL))
 		}
 	}
 

@@ -29,16 +29,16 @@ const (
 var (
 	testInstances = []cloud.Instance{
 		{
-			InstanceID: "test-instance-id-1",
-			PrivateIP:  "192.168.0.1",
+			Name:     "test-instance-id-1",
+			Endpoint: "192.168.0.1",
 		},
 		{
-			InstanceID: "test-instance-id-2",
-			PrivateIP:  "192.168.0.2",
+			Name:     "test-instance-id-2",
+			Endpoint: "192.168.0.2",
 		},
 		{
-			InstanceID: "test-instance-id-3",
-			PrivateIP:  "192.168.0.3",
+			Name:     "test-instance-id-3",
+			Endpoint: "192.168.0.3",
 		},
 	}
 )
@@ -54,10 +54,10 @@ var _ = Describe("AWS Provider", func() {
 	})
 
 	Context("interface functions", func() {
-		var awsProvider *Members
+		var awsProvider *AWS
 
 		BeforeEach(func() {
-			awsProvider = &Members{
+			awsProvider = &AWS{
 				identityDocument: identityDoc,
 				instances:        testInstances,
 			}
@@ -69,8 +69,8 @@ var _ = Describe("AWS Provider", func() {
 
 		It("run GetLocalInstance successfully", func() {
 			Expect(awsProvider.GetLocalInstance()).To(Equal(cloud.Instance{
-				InstanceID: localInstanceID,
-				PrivateIP:  localPrivateIP,
+				Name:     localInstanceID,
+				Endpoint: localPrivateIP,
 			}))
 		})
 	})
@@ -87,12 +87,12 @@ var _ = Describe("AWS Provider", func() {
 			var ec2Instances []*ec2.Instance
 			for _, testInstance := range testInstances {
 				autoscalingInstances = append(autoscalingInstances, &autoscaling.Instance{
-					InstanceId: aws.String(testInstance.InstanceID),
+					InstanceId: aws.String(testInstance.Name),
 				})
-				autoscalingInstanceIDs = append(autoscalingInstanceIDs, testInstance.InstanceID)
+				autoscalingInstanceIDs = append(autoscalingInstanceIDs, testInstance.Name)
 				ec2Instances = append(ec2Instances, &ec2.Instance{
-					InstanceId:       aws.String(testInstance.InstanceID),
-					PrivateIpAddress: aws.String(testInstance.PrivateIP),
+					InstanceId:       aws.String(testInstance.Name),
+					PrivateIpAddress: aws.String(testInstance.Endpoint),
 				})
 			}
 

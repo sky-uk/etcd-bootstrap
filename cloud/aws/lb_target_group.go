@@ -71,7 +71,7 @@ func (l LBTargetGroupRegistrationProvider) Update(instances []cloud.Instance) er
 	var targets []*elbv2.TargetDescription
 	for _, instance := range instances {
 		targets = append(targets, &elbv2.TargetDescription{
-			Id: aws.String(instance.PrivateIP),
+			Id: aws.String(instance.Endpoint),
 		})
 	}
 

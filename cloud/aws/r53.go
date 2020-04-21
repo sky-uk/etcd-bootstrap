@@ -67,7 +67,7 @@ func (r Route53RegistrationProvider) Update(instances []cloud.Instance) error {
 
 	var resourceRecords []*route53.ResourceRecord
 	for _, instance := range instances {
-		resourceRecords = append(resourceRecords, &route53.ResourceRecord{Value: aws.String(instance.PrivateIP)})
+		resourceRecords = append(resourceRecords, &route53.ResourceRecord{Value: aws.String(instance.Endpoint)})
 	}
 
 	change := &route53.Change{

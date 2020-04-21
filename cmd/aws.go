@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/sky-uk/etcd-bootstrap/bootstrap"
 	"github.com/sky-uk/etcd-bootstrap/cloud"
@@ -68,7 +69,24 @@ func aws(cmd *cobra.Command, args []string) {
 	registerInstances(cloudInstances)
 }
 
-func createCloudInstances(aws *aws_cloud.Members) bootstrap.CloudInstances {
+type localIPResolver struct {
+	aws *aws_cloud.AWS
+}
+
+func (l *localIPResolver) LookupLocalIP() (net.IP, error) {
+	localInstance, err := l.aws.GetLocalInstance()
+	if err != nil {
+		return net.IP{}, err
+	}
+	// Assumes the aws endpoint is always in IP format.
+	ip := net.ParseIP(localInstance.Endpoint)
+	if ip == nil {
+		panic("expected aws.GetLocalInstance() to return an IP endpoint, but was " + localInstance.Endpoint)
+	}
+	return ip, nil
+}
+
+func createCloudInstances(aws *aws_cloud.AWS) bootstrap.CloudInstances {
 	switch instanceLookupMethod {
 	case "asg":
 		log.Info("Using ASG for looking up cluster instances")
@@ -78,11 +96,10 @@ func createCloudInstances(aws *aws_cloud.Members) bootstrap.CloudInstances {
 		if srvDomainName == "" {
 			log.Fatalf("srv-domain-name must be provided")
 		}
-		// Instead of using ASG, use SRV for looking up the instances.
-		return srv.New(&srv.Config{
-			DomainName: srvDomainName,
-			Service:    srvService,
-		})
+		if srvService == "" {
+			log.Fatalf("srv-service must be provided")
+		}
+		return srv.New(srvDomainName, srvService, &localIPResolver{aws: aws})
 	default:
 		log.Fatalf("Unsupported cluster lookup method %q", instanceLookupMethod)
 		return nil

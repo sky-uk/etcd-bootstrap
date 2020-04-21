@@ -23,15 +23,15 @@ type awsEC2 interface {
 	DescribeInstances(e *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error)
 }
 
-// Members of the AWS auto scaling group.
-type Members struct {
+// AWS returns the instances in the local auto scaling group.
+type AWS struct {
 	awsSession       *session.Session
 	identityDocument *ec2metadata.EC2InstanceIdentityDocument
 	instances        []cloud.Instance
 }
 
 // GetInstances will return the aws etcd instances
-func (m *Members) GetInstances() ([]cloud.Instance, error) {
+func (m *AWS) GetInstances() ([]cloud.Instance, error) {
 	if m.instances == nil {
 		identityDoc, err := m.getIdentityDoc()
 		if err != nil {
@@ -51,18 +51,18 @@ func (m *Members) GetInstances() ([]cloud.Instance, error) {
 }
 
 // GetLocalInstance will get the aws instance etcd bootstrap is running on
-func (m *Members) GetLocalInstance() (cloud.Instance, error) {
+func (m *AWS) GetLocalInstance() (cloud.Instance, error) {
 	identityDoc, err := m.getIdentityDoc()
 	if err != nil {
 		return cloud.Instance{}, nil
 	}
 	return cloud.Instance{
-		InstanceID: identityDoc.InstanceID,
-		PrivateIP:  identityDoc.PrivateIP,
+		Name:     identityDoc.InstanceID,
+		Endpoint: identityDoc.PrivateIP,
 	}, nil
 }
 
-func (m *Members) getIdentityDoc() (*ec2metadata.EC2InstanceIdentityDocument, error) {
+func (m *AWS) getIdentityDoc() (*ec2metadata.EC2InstanceIdentityDocument, error) {
 	if m.identityDocument == nil {
 		meta := ec2metadata.New(m.awsSession)
 		identityDoc, err := meta.GetInstanceIdentityDocument()
@@ -75,12 +75,12 @@ func (m *Members) getIdentityDoc() (*ec2metadata.EC2InstanceIdentityDocument, er
 }
 
 // NewAWS returns the Members this local instance belongs to.
-func NewAWS() (*Members, error) {
+func NewAWS() (*AWS, error) {
 	awsSession, err := session.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new AWS session: %v", err)
 	}
-	return &Members{
+	return &AWS{
 		awsSession: awsSession,
 	}, nil
 }
@@ -117,8 +117,8 @@ func queryInstances(identity *ec2metadata.EC2InstanceIdentityDocument, awsASGCli
 	for _, reservation := range out.Reservations {
 		for _, instance := range reservation.Instances {
 			instances = append(instances, cloud.Instance{
-				InstanceID: *instance.InstanceId,
-				PrivateIP:  *instance.PrivateIpAddress,
+				Name:     *instance.InstanceId,
+				Endpoint: *instance.PrivateIpAddress,
 			})
 		}
 	}
