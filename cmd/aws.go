@@ -49,19 +49,13 @@ func init() {
 		"service to use for instance-lookup-method=srv")
 }
 
-type registrationProvider interface {
-	Update([]cloud.Instance) error
-}
-
 func aws(cmd *cobra.Command, args []string) {
-	registrator := initialiseAWSRegistrationProvider()
-
 	aws, err := aws_cloud.NewAWS()
 	if err != nil {
 		log.Fatalf("Failed to create AWS provider: %v", err)
 	}
 
-	cloudInstances := cloudInstances(aws)
+	cloudInstances := createCloudInstances(aws)
 	bootstrapper, err := bootstrap.New(cloudInstances, aws)
 	if err != nil {
 		log.Fatalf("Failed to create etcd bootstrapper: %v", err)
@@ -71,35 +65,43 @@ func aws(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to generate etcd flags file: %v", err)
 	}
 
-	instances, err := aws.GetInstances()
-	if err != nil {
-		log.Fatalf("Failed to retrieve instances: %v", err)
-	}
-	if err := registrator.Update(instances); err != nil {
-		log.Fatalf("Failed to register etcd cluster data with cloud registration provider: %v", err)
-	}
+	registerInstances(cloudInstances)
 }
 
-func cloudInstances(asg *aws_cloud.Members) bootstrap.CloudInstances {
+func createCloudInstances(aws *aws_cloud.Members) bootstrap.CloudInstances {
 	switch instanceLookupMethod {
 	case "asg":
 		log.Info("Using ASG for looking up cluster instances")
-		return asg
+		return aws
 	case "srv":
 		log.Info("Using SRV record for looking up cluster instances")
 		if srvDomainName == "" {
 			log.Fatalf("srv-domain-name must be provided")
 		}
 		// Instead of using ASG, use SRV for looking up the instances.
-		cloudInstances := srv.New(&srv.Config{
+		return srv.New(&srv.Config{
 			DomainName: srvDomainName,
 			Service:    srvService,
 		})
-		return cloudInstances
 	default:
 		log.Fatalf("Unsupported cluster lookup method %q", instanceLookupMethod)
 		return nil
 	}
+}
+
+func registerInstances(cloudInstances bootstrap.CloudInstances) {
+	instances, err := cloudInstances.GetInstances()
+	if err != nil {
+		log.Fatalf("Failed to retrieve instances: %v", err)
+	}
+	registrator := initialiseAWSRegistrationProvider()
+	if err := registrator.Update(instances); err != nil {
+		log.Fatalf("Failed to register etcd cluster data with cloud registration provider: %v", err)
+	}
+}
+
+type registrationProvider interface {
+	Update([]cloud.Instance) error
 }
 
 func initialiseAWSRegistrationProvider() registrationProvider {
