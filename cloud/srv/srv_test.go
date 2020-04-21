@@ -19,6 +19,9 @@ type stubResolver struct {
 	sentCname                                    string
 	sentAddrs                                    []*net.SRV
 	sentErr                                      error
+	receivedTXTName                              string
+	sentTXT                                      map[string][]string
+	sentTXTerr                                   error
 }
 
 func (r *stubResolver) LookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*net.SRV, err error) {
@@ -28,9 +31,15 @@ func (r *stubResolver) LookupSRV(ctx context.Context, service, proto, name strin
 	return r.sentCname, r.sentAddrs, r.sentErr
 }
 
+func (r *stubResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
+	r.receivedTXTName = name
+	return r.sentTXT[name], r.sentTXTerr
+}
+
 var _ = Describe("SRV Instances", func() {
 	var (
 		addrs    []*net.SRV
+		sentTXT  map[string][]string
 		resolver *stubResolver
 		conf     *Config
 	)
@@ -38,20 +47,25 @@ var _ = Describe("SRV Instances", func() {
 	BeforeEach(func() {
 		addrs = []*net.SRV{
 			&net.SRV{
-				Target: "10.10.10.1",
+				Target: "etcd-1",
 			},
 			&net.SRV{
-				Target: "10.10.10.2",
+				Target: "etcd-2",
 			},
 			&net.SRV{
-				Target: "10.10.10.3",
+				Target: "etcd-3",
 			},
 		}
+		sentTXT = make(map[string][]string)
+		sentTXT["etcd-1"] = []string{"bogus", "boz=woz", "name=i-abc1", "gbg=rrr"}
+		sentTXT["etcd-2"] = []string{"name=i-abc2"}
+		sentTXT["etcd-3"] = []string{"name=i-abc3"}
 	})
 
 	JustBeforeEach(func() {
 		resolver = &stubResolver{
 			sentAddrs: addrs,
+			sentTXT:   sentTXT,
 		}
 		conf = &Config{
 			DomainName: "my-etcd-cluster.example.com",
@@ -61,7 +75,8 @@ var _ = Describe("SRV Instances", func() {
 	})
 
 	It("should request the correct SRV record", func() {
-		New(conf).GetInstances()
+		_, err := New(conf).GetInstances()
+		Expect(err).To(Succeed())
 
 		Expect(resolver.receivedService).To(Equal("etcd-server-ssl"))
 		Expect(resolver.receivedProto).To(Equal("tcp"))
@@ -70,21 +85,23 @@ var _ = Describe("SRV Instances", func() {
 
 	It("should return the instances in the SRV record", func() {
 		srv := New(conf)
-		instances, _ := srv.GetInstances()
+		instances, err := srv.GetInstances()
+		Expect(err).To(Succeed())
 
 		Expect(instances).To(HaveLen(3))
-		Expect(instances[0].PrivateIP).To(Equal("10.10.10.1"))
-		Expect(instances[1].PrivateIP).To(Equal("10.10.10.2"))
-		Expect(instances[2].PrivateIP).To(Equal("10.10.10.3"))
+		Expect(instances[0].PrivateIP).To(Equal("etcd-1"))
+		Expect(instances[1].PrivateIP).To(Equal("etcd-2"))
+		Expect(instances[2].PrivateIP).To(Equal("etcd-3"))
 	})
 
 	It("should return unique instance IDs", func() {
 		srv := New(conf)
-		instances, _ := srv.GetInstances()
+		instances, err := srv.GetInstances()
+		Expect(err).To(Succeed())
 
 		Expect(instances).To(HaveLen(3))
-		Expect(instances[0].InstanceID).To(Equal("etcd-10.10.10.1"))
-		Expect(instances[1].InstanceID).To(Equal("etcd-10.10.10.2"))
-		Expect(instances[2].InstanceID).To(Equal("etcd-10.10.10.3"))
+		Expect(instances[0].InstanceID).To(Equal("i-abc1"))
+		Expect(instances[1].InstanceID).To(Equal("i-abc2"))
+		Expect(instances[2].InstanceID).To(Equal("i-abc3"))
 	})
 })
