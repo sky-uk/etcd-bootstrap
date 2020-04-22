@@ -318,9 +318,9 @@ var _ = Describe("Bootstrap", func() {
 
 	Describe("TLS", func() {
 		var (
-			serverCA   = "client-ca.pem"
-			serverCert = "client.pem"
-			serverKey  = "client-key.pem"
+			serverCA   = "server-ca.pem"
+			serverCert = "server.pem"
+			serverKey  = "server-key.pem"
 			peerCA     = "peer-ca.pem"
 			peerCert   = "peer.pem"
 			peerKey    = "peer.key"
