@@ -24,8 +24,8 @@ type etcdMembersAPI interface {
 	Remove(ctx context.Context, mID string) error
 }
 
-// Cluster represents an etcd cluster.
-type Cluster struct {
+// ClusterAPI represents an etcd cluster API.
+type ClusterAPI struct {
 	instances Instances
 	protocol  string
 	transport client.CancelableTransport
@@ -46,17 +46,17 @@ type Member struct {
 }
 
 // Option for New.
-type Option func(c *Cluster) error
+type Option func(c *ClusterAPI) error
 
-// WithTLS enables client TLS for talking to the etcd cluster.
-func WithTLS(clientCA, clientCert, clientKey string) Option {
-	return func(c *Cluster) error {
+// WithTLS enables TLS for talking to the etcd cluster. It requires the locations of the peer certificates.
+func WithTLS(peerCA, peerCert, peerKey string) Option {
+	return func(c *ClusterAPI) error {
 		vals := []struct {
 			name, val string
 		}{
-			{"clientCA", clientCA},
-			{"clientCert", clientCert},
-			{"clientKey", clientKey},
+			{"peerCA", peerCA},
+			{"peerCert", peerCert},
+			{"peerKey", peerKey},
 		}
 		for _, val := range vals {
 			if _, err := os.Stat(val.val); err != nil {
@@ -65,13 +65,13 @@ func WithTLS(clientCA, clientCert, clientKey string) Option {
 		}
 
 		// Set up client certificates.
-		cert, err := tls.LoadX509KeyPair(clientCert, clientKey)
+		cert, err := tls.LoadX509KeyPair(peerCert, peerKey)
 		if err != nil {
-			return fmt.Errorf("unable to load client certs: %w", err)
+			return fmt.Errorf("unable to load peer certs: %w", err)
 		}
-		caCert, err := ioutil.ReadFile(clientCA)
+		caCert, err := ioutil.ReadFile(peerCA)
 		if err != nil {
-			return fmt.Errorf("unable to load client ca: %w", err)
+			return fmt.Errorf("unable to load peer ca: %w", err)
 		}
 		caCertPool := x509.NewCertPool()
 		caCertPool.AppendCertsFromPEM(caCert)
@@ -97,8 +97,8 @@ func WithTLS(clientCA, clientCert, clientKey string) Option {
 }
 
 // New returns a cluster object for interacting with the etcd cluster API.
-func New(instances Instances, opts ...Option) (*Cluster, error) {
-	c := &Cluster{
+func New(instances Instances, opts ...Option) (*ClusterAPI, error) {
+	c := &ClusterAPI{
 		instances: instances,
 		protocol:  "http",
 		transport: client.DefaultTransport,
@@ -111,7 +111,7 @@ func New(instances Instances, opts ...Option) (*Cluster, error) {
 	return c, nil
 }
 
-func (c *Cluster) membersAPI() (etcdMembersAPI, error) {
+func (c *ClusterAPI) membersAPI() (etcdMembersAPI, error) {
 	if c.membersAPIClient == nil {
 		instances, err := c.instances.GetInstances()
 		if err != nil {
@@ -133,7 +133,7 @@ func (c *Cluster) membersAPI() (etcdMembersAPI, error) {
 	return c.membersAPIClient, nil
 }
 
-func (c *Cluster) list(ctx context.Context) ([]client.Member, error) {
+func (c *ClusterAPI) list(ctx context.Context) ([]client.Member, error) {
 	api, err := c.membersAPI()
 	if err != nil {
 		return nil, err
@@ -141,7 +141,7 @@ func (c *Cluster) list(ctx context.Context) ([]client.Member, error) {
 	return api.List(ctx)
 }
 
-func (c *Cluster) add(ctx context.Context, peerURL string) (*client.Member, error) {
+func (c *ClusterAPI) add(ctx context.Context, peerURL string) (*client.Member, error) {
 	api, err := c.membersAPI()
 	if err != nil {
 		return nil, err
@@ -149,7 +149,7 @@ func (c *Cluster) add(ctx context.Context, peerURL string) (*client.Member, erro
 	return api.Add(ctx, peerURL)
 }
 
-func (c *Cluster) remove(ctx context.Context, mID string) error {
+func (c *ClusterAPI) remove(ctx context.Context, mID string) error {
 	api, err := c.membersAPI()
 	if err != nil {
 		return err
@@ -158,7 +158,7 @@ func (c *Cluster) remove(ctx context.Context, mID string) error {
 }
 
 // Members returns the cluster members.
-func (c *Cluster) Members() ([]Member, error) {
+func (c *ClusterAPI) Members() ([]Member, error) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), timeout)
 	defer cancelFn()
 	etcdMembers, err := c.list(ctx)
@@ -182,7 +182,7 @@ func (c *Cluster) Members() ([]Member, error) {
 }
 
 // AddMember adds a new member to the cluster by its peer URL.
-func (c *Cluster) AddMember(peerURL string) error {
+func (c *ClusterAPI) AddMember(peerURL string) error {
 	ctx, cancelFn := context.WithTimeout(context.Background(), timeout)
 	defer cancelFn()
 	_, err := c.add(ctx, peerURL)
@@ -190,7 +190,7 @@ func (c *Cluster) AddMember(peerURL string) error {
 }
 
 // RemoveMember removes a member of the cluster by its peer URL.
-func (c *Cluster) RemoveMember(peerURL string) error {
+func (c *ClusterAPI) RemoveMember(peerURL string) error {
 	ctx, cancelFn := context.WithTimeout(context.Background(), timeout)
 	defer cancelFn()
 	members, err := c.list(ctx)

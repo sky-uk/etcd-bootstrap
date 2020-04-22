@@ -70,7 +70,7 @@ func aws(cmd *cobra.Command, args []string) {
 	}
 
 	cloudInstances := createCloudInstances(aws)
-	etcdCluster := etcdCluster(cloudInstances)
+	etcdCluster := createEtcdClusterAPI(cloudInstances)
 
 	var opts []bootstrap.Option
 	if enableTLS {
@@ -140,10 +140,10 @@ type registrationProvider interface {
 	Update([]cloud.Instance) error
 }
 
-func etcdCluster(instances etcd.Instances) *etcd.Cluster {
+func createEtcdClusterAPI(instances etcd.Instances) *etcd.ClusterAPI {
 	var etcdOpts []etcd.Option
 	if enableTLS {
-		etcdOpts = []etcd.Option{etcd.WithTLS(clientCA, clientCert, clientKey)}
+		etcdOpts = []etcd.Option{etcd.WithTLS(peerCA, peerCert, peerKey)}
 	}
 	etcdCluster, err := etcd.New(instances, etcdOpts...)
 	if err != nil {

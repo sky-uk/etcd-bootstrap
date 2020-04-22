@@ -48,7 +48,7 @@ var _ = Describe("Etcd client", func() {
 	Context("Members()", func() {
 		It("can list when the etcd members api client responds with expected results", func() {
 			By("Returning all expected responses")
-			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &ClusterAPI{membersAPIClient: membersAPIClient}
 			memberList, err := etcdCluster.Members()
 			Expect(err).To(BeNil())
 			Expect(memberList).To(Equal([]Member{
@@ -67,7 +67,7 @@ var _ = Describe("Etcd client", func() {
 			membersAPIClient.MockList.Err = fmt.Errorf("failed to list members")
 
 			By("Return a client that isn't able to list etcd members")
-			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &ClusterAPI{membersAPIClient: membersAPIClient}
 			_, err := etcdCluster.Members()
 			Expect(err).To(BeNil())
 		})
@@ -89,7 +89,7 @@ var _ = Describe("Etcd client", func() {
 			}
 
 			By("Returning an etcd client that returns complex members")
-			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &ClusterAPI{membersAPIClient: membersAPIClient}
 			_, err := etcdCluster.Members()
 			Expect(err).ToNot(BeNil())
 		})
@@ -100,7 +100,7 @@ var _ = Describe("Etcd client", func() {
 			membersAPIClient.MockAdd.ExpectedPeerURL = "http://192.168.0.100"
 
 			By("Returning all expected responses")
-			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &ClusterAPI{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.AddMember("http://192.168.0.100")).To(BeNil())
 		})
 	})
@@ -118,7 +118,7 @@ var _ = Describe("Etcd client", func() {
 			membersAPIClient.MockRemove.ExpectedMID = "test-remove-instance-id"
 
 			By("Returning all expected responses")
-			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &ClusterAPI{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.RemoveMember("http://192.168.0.1:2379")).To(BeNil())
 		})
 
@@ -126,7 +126,7 @@ var _ = Describe("Etcd client", func() {
 			membersAPIClient.MockList.Err = fmt.Errorf("failed to list members")
 
 			By("Returning a client that isn't able to list etcd members")
-			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &ClusterAPI{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.RemoveMember("http://192.168.0.1:2379")).ToNot(BeNil())
 		})
 
@@ -147,7 +147,7 @@ var _ = Describe("Etcd client", func() {
 			}
 
 			By("Returning an etcd client that returns complex members")
-			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &ClusterAPI{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.RemoveMember("http://192.168.0.1:2379")).ToNot(BeNil())
 		})
 
@@ -163,7 +163,7 @@ var _ = Describe("Etcd client", func() {
 			}
 
 			By("Returning an etcd member list containing irrelevant members")
-			etcdCluster := &Cluster{membersAPIClient: membersAPIClient}
+			etcdCluster := &ClusterAPI{membersAPIClient: membersAPIClient}
 			Expect(etcdCluster.RemoveMember("http://172.16.0.1:2379")).To(BeNil())
 		})
 	})
@@ -173,14 +173,14 @@ var _ = Describe("Etcd client", func() {
 			// Created with:
 			//   CAROOT=. mkcert -install && mv rootCA.pem root
 			//   CAROOT=. mkcert -client -cert-file test.pem -key-file test-key.pem test-client-certs
-			clientCA   = "test-ca.pem"
-			clientCert = "test.pem"
-			clientKey  = "test-key.pem"
+			peerCA   = "test-ca.pem"
+			peerCert = "test.pem"
+			peerKey  = "test-key.pem"
 		)
 
 		It("can load the certificates successfully", func() {
-			cluster := &Cluster{}
-			Expect(WithTLS(clientCA, clientCert, clientKey)(cluster)).To(Succeed())
+			cluster := &ClusterAPI{}
+			Expect(WithTLS(peerCA, peerCert, peerKey)(cluster)).To(Succeed())
 			Expect(cluster.protocol).To(Equal("https"))
 			transport := (cluster.transport).(*http.Transport)
 			Expect(transport.TLSClientConfig).To(Not(BeNil()), "tls client config should be set")
