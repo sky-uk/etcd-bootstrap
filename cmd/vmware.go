@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/sky-uk/etcd-bootstrap/bootstrap"
 	vmware_provider "github.com/sky-uk/etcd-bootstrap/cloud/vmware"
+	"github.com/sky-uk/etcd-bootstrap/etcd"
 	"github.com/spf13/cobra"
 )
 
@@ -78,7 +79,11 @@ func vmware(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to create VMware provider: %v", err)
 	}
 
-	bootstrapper, err := bootstrap.New(vmwareProvider, vmwareProvider)
+	etcdCluster, err := etcd.New(vmwareProvider)
+	if err != nil {
+		log.Fatalf("Failed to create etcd cluster API: %v", err)
+	}
+	bootstrapper, err := bootstrap.New(vmwareProvider, vmwareProvider, etcdCluster)
 	if err != nil {
 		log.Fatalf("Failed to create etcd bootstrapper: %v", err)
 	}

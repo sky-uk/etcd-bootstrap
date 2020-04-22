@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/sky-uk/etcd-bootstrap/bootstrap"
 	gcp_provider "github.com/sky-uk/etcd-bootstrap/cloud/gcp"
+	"github.com/sky-uk/etcd-bootstrap/etcd"
 	"github.com/spf13/cobra"
 )
 
@@ -42,7 +43,11 @@ func gcp(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to create GCP provider: %v", err)
 	}
 
-	bootstrapper, err := bootstrap.New(gcpProvider, gcpProvider)
+	etcdCluster, err := etcd.New(gcpProvider)
+	if err != nil {
+		log.Fatalf("Failed to create etcd cluster API: %v", err)
+	}
+	bootstrapper, err := bootstrap.New(gcpProvider, gcpProvider, etcdCluster)
 	if err != nil {
 		log.Fatalf("Failed to create etcd bootstrapper: %v", err)
 	}
