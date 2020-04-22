@@ -52,14 +52,14 @@ type EtcdCluster interface {
 type Option func(*Bootstrapper) error
 
 // WithTLS enables TLS for peer and client endpoints.
-func WithTLS(clientCA, clientCert, clientKey, peerCA, peerCert, peerKey string) Option {
+func WithTLS(serverCA, serverCert, serverKey, peerCA, peerCert, peerKey string) Option {
 	return func(b *Bootstrapper) error {
 		vals := []struct {
 			name, val string
 		}{
-			{"clientCA", clientCA},
-			{"clientCert", clientCert},
-			{"clientKey", clientKey},
+			{"serverCA", serverCA},
+			{"serverCert", serverCert},
+			{"serverKey", serverKey},
 			{"peerCA", peerCA},
 			{"peerCert", peerCert},
 			{"peerKey", peerKey},
@@ -72,9 +72,9 @@ func WithTLS(clientCA, clientCert, clientKey, peerCA, peerCert, peerKey string) 
 
 		flags := []string{
 			"ETCD_CLIENT_CERT_AUTH=true",
-			"ETCD_TRUSTED_CA_FILE=" + clientCA,
-			"ETCD_CERT_FILE=" + clientCert,
-			"ETCD_KEY_FILE=" + clientKey,
+			"ETCD_TRUSTED_CA_FILE=" + serverCA,
+			"ETCD_CERT_FILE=" + serverCert,
+			"ETCD_KEY_FILE=" + serverKey,
 			"ETCD_PEER_CLIENT_CERT_AUTH=true",
 			"ETCD_PEER_TRUSTED_CA_FILE=" + peerCA,
 			"ETCD_PEER_CERT_FILE=" + peerCert,

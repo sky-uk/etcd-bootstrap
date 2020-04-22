@@ -31,9 +31,9 @@ var (
 	srvDomainName           string
 	srvService              string
 	enableTLS               bool
-	clientCA                string
-	clientCert              string
-	clientKey               string
+	serverCA                string
+	serverCert              string
+	serverKey               string
 	peerCA                  string
 	peerCert                string
 	peerKey                 string
@@ -55,9 +55,9 @@ func init() {
 	f.StringVar(&srvDomainName, "srv-domain-name", "", "domain name to use for instance-lookup-method=srv")
 	f.StringVar(&srvService, "srv-service", "etcd-bootstrap", "service to use for instance-lookup-method=srv")
 	f.BoolVar(&enableTLS, "enable-tls", false, "enable TLS")
-	f.StringVar(&clientCA, "tls-client-ca", "", "path to client CA")
-	f.StringVar(&clientCert, "tls-client-cert", "", "path to client certificate")
-	f.StringVar(&clientKey, "tls-client-key", "", "path to client key")
+	f.StringVar(&serverCA, "tls-ca", "", "path to client/server CA")
+	f.StringVar(&serverCert, "tls-cert", "", "path to server certificate")
+	f.StringVar(&serverKey, "tls-key", "", "path to server key")
 	f.StringVar(&peerCA, "tls-peer-ca", "", "path to peer CA")
 	f.StringVar(&peerCert, "tls-peer-cert", "", "path to peer certificate")
 	f.StringVar(&peerKey, "tls-peer-key", "", "path to peer key")
@@ -74,7 +74,7 @@ func aws(cmd *cobra.Command, args []string) {
 
 	var opts []bootstrap.Option
 	if enableTLS {
-		opts = []bootstrap.Option{bootstrap.WithTLS(clientCA, clientCert, clientKey, peerCA, peerCert, peerKey)}
+		opts = []bootstrap.Option{bootstrap.WithTLS(serverCA, serverCert, serverKey, peerCA, peerCert, peerKey)}
 	}
 	bootstrapper, err := bootstrap.New(cloudInstances, aws, etcdCluster, opts...)
 	if err != nil {

@@ -12,16 +12,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-const (
-	localPrivateIP  = "192.168.0.100"
-	localInstanceID = "test-local-instance"
-)
-
-var (
-	localPeerURL   = fmt.Sprintf("http://%v:2380", localPrivateIP)
-	localClientURL = fmt.Sprintf("http://%v:2379", localPrivateIP)
-)
-
 // TestBootstrap to register the test suite
 func TestBootstrap(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -30,12 +20,23 @@ func TestBootstrap(t *testing.T) {
 
 var _ = Describe("Bootstrap", func() {
 	var (
-		cloudProvider *CloudProvider
-		etcdCluster   *MockEtcdCluster
-		bootstrapper  *Bootstrapper
+		cloudProvider   *CloudProvider
+		etcdCluster     *MockEtcdCluster
+		bootstrapper    *Bootstrapper
+		localPrivateIP  string
+		localInstanceID string
+		localPeerURL    string
+		localClientURL  string
 	)
 
 	BeforeEach(func() {
+		localPrivateIP = "192.168.0.100"
+		localInstanceID = "test-local-instance"
+		localPeerURL = fmt.Sprintf("http://%v:2380", localPrivateIP)
+		localClientURL = fmt.Sprintf("http://%v:2379", localPrivateIP)
+	})
+
+	JustBeforeEach(func() {
 		cloudProvider = &CloudProvider{
 			MockGetInstances: &GetInstances{},
 			MockGetLocalInstance: &GetLocalInstance{
@@ -45,7 +46,6 @@ var _ = Describe("Bootstrap", func() {
 				},
 			},
 		}
-
 		etcdCluster = &MockEtcdCluster{
 			MockMembers: &Members{},
 			MockAddMember: &AddMember{
@@ -53,9 +53,6 @@ var _ = Describe("Bootstrap", func() {
 			},
 			MockRemoveMember: &RemoveMember{},
 		}
-	})
-
-	JustBeforeEach(func() {
 		bootstrapper = &Bootstrapper{
 			instances:     cloudProvider,
 			localInstance: cloudProvider,
@@ -317,6 +314,67 @@ var _ = Describe("Bootstrap", func() {
 		Expect(flags).To(ContainElement("ETCD_LISTEN_PEER_URLS=" + localPeerURL))
 		Expect(flags).To(ContainElement(fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%v,%v", localClientURL, bootstrapper.clientURL("127.0.0.1"))))
 		Expect(flags).To(ContainElement("ETCD_ADVERTISE_CLIENT_URLS=" + localClientURL))
+	})
+
+	Describe("TLS", func() {
+		var (
+			serverCA   = "client-ca.pem"
+			serverCert = "client.pem"
+			serverKey  = "client-key.pem"
+			peerCA     = "peer-ca.pem"
+			peerCert   = "peer.pem"
+			peerKey    = "peer.key"
+		)
+
+		BeforeEach(func() {
+			localPeerURL = fmt.Sprintf("https://%v:2380", localPrivateIP)
+			localClientURL = fmt.Sprintf("https://%v:2379", localPrivateIP)
+		})
+
+		JustBeforeEach(func() {
+			WithTLS(serverCA, serverCert, serverKey, peerCA, peerCert, peerKey)(bootstrapper)
+		})
+
+		It("adds the required TLS flags", func() {
+			cloudProvider.MockGetInstances.GetInstancesOutput = []cloud.Instance{
+				{
+					Name:     localInstanceID,
+					Endpoint: localPrivateIP,
+				},
+				{
+					Name:     "test-new-cluster-instance-id-1",
+					Endpoint: "192.168.0.1",
+				},
+				{
+					Name:     "test-new-cluster-instance-id-2",
+					Endpoint: "192.168.0.2",
+				},
+			}
+			etcdCluster.MockMembers.MembersOutput = []etcd.Member{}
+
+			etcdFlags, err := bootstrapper.GenerateEtcdFlags()
+			flags := strings.Split(etcdFlags, "\n")
+			Expect(err).To(BeNil())
+			Expect(flags).To(ContainElement("ETCD_INITIAL_CLUSTER_STATE=new"))
+			Expect(flags).To(ContainElement(fmt.Sprintf("ETCD_INITIAL_CLUSTER=%v=%v,"+
+				"test-new-cluster-instance-id-1=https://192.168.0.1:2380,"+
+				"test-new-cluster-instance-id-2=https://192.168.0.2:2380", localInstanceID, localPeerURL)))
+			Expect(flags).To(ContainElement("ETCD_NAME=" + localInstanceID))
+			Expect(flags).To(ContainElement("ETCD_INITIAL_ADVERTISE_PEER_URLS=" + localPeerURL))
+			Expect(flags).To(ContainElement("ETCD_LISTEN_PEER_URLS=" + localPeerURL))
+			Expect(flags).To(ContainElement(fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%v,%v", localClientURL,
+				bootstrapper.clientURL("127.0.0.1"))))
+			Expect(flags).To(ContainElement("ETCD_ADVERTISE_CLIENT_URLS=" + localClientURL))
+			// TLS flags
+			Expect(flags).To(ContainElement("ETCD_CLIENT_CERT_AUTH=true"))
+			Expect(flags).To(ContainElement("ETCD_TRUSTED_CA_FILE=" + serverCA))
+			Expect(flags).To(ContainElement("ETCD_CERT_FILE=" + serverCert))
+			Expect(flags).To(ContainElement("ETCD_KEY_FILE=" + serverKey))
+			Expect(flags).To(ContainElement("ETCD_PEER_CLIENT_CERT_AUTH=true"))
+			Expect(flags).To(ContainElement("ETCD_PEER_TRUSTED_CA_FILE=" + peerCA))
+			Expect(flags).To(ContainElement("ETCD_PEER_CERT_FILE=" + peerCert))
+			Expect(flags).To(ContainElement("ETCD_PEER_KEY_FILE=" + peerKey))
+		})
 	})
 })
 
