@@ -76,8 +76,8 @@ func findThisInstance() (*cloud.Instance, error) {
 		return nil, fmt.Errorf("unable to retrieve local Name metadata: %v", err)
 	}
 	local := &cloud.Instance{
-		InstanceID: name,
-		PrivateIP:  ip,
+		Name:     name,
+		Endpoint: ip,
 	}
 	return local, nil
 }
@@ -120,8 +120,8 @@ func findAllInstances(client *compute.Service, cfg *Config) ([]cloud.Instance, e
 			// https://cloud.google.com/compute/docs/reference/rest/v1/instances/list
 			if len(instance.NetworkInterfaces) > 0 {
 				instances = append(instances, cloud.Instance{
-					InstanceID: instance.Name,
-					PrivateIP:  instance.NetworkInterfaces[0].NetworkIP,
+					Name:     instance.Name,
+					Endpoint: instance.NetworkInterfaces[0].NetworkIP,
 				})
 			} else {
 				return nil, fmt.Errorf("unable to find network interfaces for instance %q", instance.Name)

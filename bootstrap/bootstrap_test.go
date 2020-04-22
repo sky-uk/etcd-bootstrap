@@ -39,8 +39,8 @@ var _ = Describe("Bootstrap", func() {
 		cloudProvider = CloudProvider{
 			MockGetLocalInstance: GetLocalInstance{
 				GetLocalInstance: cloud.Instance{
-					InstanceID: localInstanceID,
-					PrivateIP:  localPrivateIP,
+					Name:     localInstanceID,
+					Endpoint: localPrivateIP,
 				},
 			},
 		}
@@ -62,8 +62,8 @@ var _ = Describe("Bootstrap", func() {
 		By("Returning some instances including the local instance")
 		cloudProvider.MockGetInstances.GetInstancesOutput = []cloud.Instance{
 			{
-				InstanceID: localInstanceID,
-				PrivateIP:  localPrivateIP,
+				Name:     localInstanceID,
+				Endpoint: localPrivateIP,
 			},
 		}
 
@@ -83,8 +83,8 @@ var _ = Describe("Bootstrap", func() {
 		By("Returning some instances including the local instance")
 		cloudProvider.MockGetInstances.GetInstancesOutput = []cloud.Instance{
 			{
-				InstanceID: localInstanceID,
-				PrivateIP:  localPrivateIP,
+				Name:     localInstanceID,
+				Endpoint: localPrivateIP,
 			},
 		}
 
@@ -117,12 +117,12 @@ var _ = Describe("Bootstrap", func() {
 		By("Returning some instances including the local instance")
 		cloudProvider.MockGetInstances.GetInstancesOutput = []cloud.Instance{
 			{
-				InstanceID: localInstanceID,
-				PrivateIP:  localPrivateIP,
+				Name:     localInstanceID,
+				Endpoint: localPrivateIP,
 			},
 			{
-				InstanceID: "test-add-instance-id-1",
-				PrivateIP:  "192.168.0.1",
+				Name:     "test-add-instance-id-1",
+				Endpoint: "192.168.0.1",
 			},
 		}
 
@@ -152,16 +152,16 @@ var _ = Describe("Bootstrap", func() {
 		By("Returning some instances including the local instance")
 		cloudProvider.MockGetInstances.GetInstancesOutput = []cloud.Instance{
 			{
-				InstanceID: localInstanceID,
-				PrivateIP:  localPrivateIP,
+				Name:     localInstanceID,
+				Endpoint: localPrivateIP,
 			},
 			{
-				InstanceID: "test-new-cluster-instance-id-1",
-				PrivateIP:  "192.168.0.1",
+				Name:     "test-new-cluster-instance-id-1",
+				Endpoint: "192.168.0.1",
 			},
 			{
-				InstanceID: "test-new-cluster-instance-id-2",
-				PrivateIP:  "192.168.0.2",
+				Name:     "test-new-cluster-instance-id-2",
+				Endpoint: "192.168.0.2",
 			},
 		}
 
@@ -191,16 +191,16 @@ var _ = Describe("Bootstrap", func() {
 		By("Returning some instances including the local instance")
 		cloudProvider.MockGetInstances.GetInstancesOutput = []cloud.Instance{
 			{
-				InstanceID: localInstanceID,
-				PrivateIP:  localPrivateIP,
+				Name:     localInstanceID,
+				Endpoint: localPrivateIP,
 			},
 			{
-				InstanceID: "test-existing-cluster-instance-id-1",
-				PrivateIP:  "192.168.0.1",
+				Name:     "test-existing-cluster-instance-id-1",
+				Endpoint: "192.168.0.1",
 			},
 			{
-				InstanceID: "test-existing-cluster-instance-id-2",
-				PrivateIP:  "192.168.0.2",
+				Name:     "test-existing-cluster-instance-id-2",
+				Endpoint: "192.168.0.2",
 			},
 		}
 
@@ -243,16 +243,16 @@ var _ = Describe("Bootstrap", func() {
 		By("Returning some instances including the local instance")
 		cloudProvider.MockGetInstances.GetInstancesOutput = []cloud.Instance{
 			{
-				InstanceID: localInstanceID,
-				PrivateIP:  localPrivateIP,
+				Name:     localInstanceID,
+				Endpoint: localPrivateIP,
 			},
 			{
-				InstanceID: "test-existing-cluster-instance-id-2",
-				PrivateIP:  "192.168.0.2",
+				Name:     "test-existing-cluster-instance-id-2",
+				Endpoint: "192.168.0.2",
 			},
 			{
-				InstanceID: "test-existing-cluster-instance-id-3",
-				PrivateIP:  "192.168.0.3",
+				Name:     "test-existing-cluster-instance-id-3",
+				Endpoint: "192.168.0.3",
 			},
 		}
 
@@ -297,16 +297,16 @@ var _ = Describe("Bootstrap", func() {
 		By("Returning some instances including the local instance")
 		cloudProvider.MockGetInstances.GetInstancesOutput = []cloud.Instance{
 			{
-				InstanceID: localInstanceID,
-				PrivateIP:  localPrivateIP,
+				Name:     localInstanceID,
+				Endpoint: localPrivateIP,
 			},
 			{
-				InstanceID: "test-existing-cluster-partially-initialised-instance-id-1",
-				PrivateIP:  "192.168.0.1",
+				Name:     "test-existing-cluster-partially-initialised-instance-id-1",
+				Endpoint: "192.168.0.1",
 			},
 			{
-				InstanceID: "test-existing-cluster-partially-initialised-instance-id-2",
-				PrivateIP:  "192.168.0.2",
+				Name:     "test-existing-cluster-partially-initialised-instance-id-2",
+				Endpoint: "192.168.0.2",
 			},
 		}
 

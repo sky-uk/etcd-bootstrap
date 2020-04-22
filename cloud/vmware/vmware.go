@@ -115,8 +115,8 @@ func findAllInstances(ctx context.Context, c *govmomi.Client, env, role string) 
 	for _, vm := range matched {
 		if vm.Summary.Runtime.PowerState == vmware_types.VirtualMachinePowerStatePoweredOn {
 			instances = append(instances, cloud.Instance{
-				InstanceID: vm.Config.Name,
-				PrivateIP:  vm.Summary.Guest.IpAddress,
+				Name:     vm.Config.Name,
+				Endpoint: vm.Summary.Guest.IpAddress,
 			})
 		}
 	}
@@ -137,10 +137,10 @@ func matchesTag(vm mo.VirtualMachine, tag string, match string) bool {
 
 func findThisInstance(cfg *Config, instances []cloud.Instance) (*cloud.Instance, error) {
 	for _, instance := range instances {
-		if strings.Contains(cfg.VMName, instance.InstanceID) {
+		if strings.Contains(cfg.VMName, instance.Name) {
 			return &cloud.Instance{
-				InstanceID: instance.InstanceID,
-				PrivateIP:  instance.PrivateIP,
+				Name:     instance.Name,
+				Endpoint: instance.Endpoint,
 			}, nil
 		}
 	}

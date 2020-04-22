@@ -41,7 +41,7 @@ func New(provider Provider) (*Cluster, error) {
 
 	var endpoints []string
 	for _, instance := range instances {
-		endpoints = append(endpoints, fmt.Sprintf("http://%s:2379", instance.PrivateIP))
+		endpoints = append(endpoints, fmt.Sprintf("http://%s:2379", instance.Endpoint))
 	}
 
 	c, err := client.New(client.Config{Endpoints: endpoints})
