@@ -54,12 +54,21 @@ func (m *AWS) GetInstances() ([]cloud.Instance, error) {
 func (m *AWS) GetLocalInstance() (cloud.Instance, error) {
 	identityDoc, err := m.getIdentityDoc()
 	if err != nil {
-		return cloud.Instance{}, nil
+		return cloud.Instance{}, err
 	}
 	return cloud.Instance{
 		Name:     identityDoc.InstanceID,
 		Endpoint: identityDoc.PrivateIP,
 	}, nil
+}
+
+// GetLocalIP returns the local instance's PrivateIP.
+func (m *AWS) GetLocalIP() (string, error) {
+	localInstance, err := m.GetLocalInstance()
+	if err != nil {
+		return "", err
+	}
+	return localInstance.Endpoint, nil
 }
 
 func (m *AWS) getIdentityDoc() (*ec2metadata.EC2InstanceIdentityDocument, error) {

@@ -27,7 +27,7 @@ type SRV struct {
 
 // LocalResolver finds the IP address associated with the local instance.
 type LocalResolver interface {
-	LookupLocalIP() (net.IP, error)
+	GetLocalIP() (string, error)
 }
 
 type resolver interface {
@@ -110,7 +110,7 @@ func (s *SRV) lookupInstanceAddresses(instances []cloud.Instance) (map[cloud.Ins
 }
 
 func (s *SRV) findLocalInstance() (cloud.Instance, error) {
-	localIP, err := s.localResolver.LookupLocalIP()
+	localIP, err := s.localResolver.GetLocalIP()
 	if err != nil {
 		return cloud.Instance{}, fmt.Errorf("unable to lookup local IP: %w", err)
 	}
@@ -125,7 +125,7 @@ func (s *SRV) findLocalInstance() (cloud.Instance, error) {
 
 	for instance, addrs := range instanceAddrs {
 		for _, addr := range addrs {
-			if localIP.Equal(net.ParseIP(addr)) {
+			if localIP == addr {
 				return instance, nil
 			}
 		}
@@ -143,4 +143,9 @@ func (s *SRV) GetLocalInstance() (cloud.Instance, error) {
 		s.localInstance = &instance
 	}
 	return *s.localInstance, nil
+}
+
+// GetLocalIP returns the local IP delegating to the LocalResolver.
+func (s *SRV) GetLocalIP() (string, error) {
+	return s.localResolver.GetLocalIP()
 }
