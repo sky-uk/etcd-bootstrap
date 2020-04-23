@@ -114,8 +114,8 @@ var _ = Describe("Bootstrap", func() {
 		Expect(err).To(BeNil())
 	})
 
-	It("fails when it cannot add etcd member", func() {
-		By("Returning some instances including the local instance")
+	It("fails when it cannot add the local instance as a new etcd member", func() {
+		By("The cloudAPI returns instances including the local instance")
 		cloudAPIMock.GetInstancesMock.GetInstancesOutput = []cloud.Instance{
 			{
 				Name:     localInstanceID,
@@ -127,21 +127,19 @@ var _ = Describe("Bootstrap", func() {
 			},
 		}
 
-		By("Returning an etcd member list requiring an update")
+		By("The etcd API only returns one member, missing the local instance")
 		etcdAPIMock.MembersMock.MembersOutput = []etcd.Member{
 			{
 				Name:    "test-add-instance-id-1",
-				PeerURL: "http://endopoint-1:2380",
+				PeerURL: "http://endpoint-1:2380",
 			},
 		}
 
-		By("Returning an error when attempting to list all etcd members")
+		By("Returning an error when attempting to add the local instance to the etcd API")
 		etcdAPIMock.AddMemberMock.ExpectedInput = &localAdvertisePeerURL
 		etcdAPIMock.AddMemberMock.Err = fmt.Errorf("failed to add etcd member")
 		_, err := bootstrapper.GenerateEtcdFlags()
-
-		By("Do not fail as it may be down to an etcd quorum issue")
-		Expect(err).ToNot(BeNil())
+		Expect(err).ToNot(Succeed())
 	})
 
 	Describe("new cluster", func() {
