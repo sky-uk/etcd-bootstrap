@@ -128,8 +128,7 @@ func (b *Bootstrapper) GenerateEtcdFlags() (string, error) {
 		return "", err
 	}
 	if nodeExistsInCluster {
-		// We treat it as a new cluster in case the cluster hasn't fully bootstrapped yet.
-		// etcd will ignore the INITIAL_* flags otherwise, so this should be safe.
+		// etcd expects the cluster state to be set to `new` when the node is already part of the cluster.
 		log.Info("Node already exists in cluster - treating as an existing node in a new cluster")
 		return b.createEtcdConfigForNewCluster()
 	}
@@ -149,6 +148,10 @@ func (b *Bootstrapper) clusterExists() (bool, error) {
 	return len(m) > 0, nil
 }
 
+// nodeExistsInCluster checks whether the local instance has joined the etcd cluster.
+// It does this by seeing if the local instance name already exists in the etcd cluster.
+// Checking the peerURL is not sufficient - as this only shows the cluster is ready to
+// accept the node, not that it has joined yet.
 func (b *Bootstrapper) nodeExistsInCluster() (bool, error) {
 	members, err := b.etcdAPI.Members()
 	if err != nil {
@@ -166,6 +169,16 @@ func (b *Bootstrapper) nodeExistsInCluster() (bool, error) {
 	return false, nil
 }
 
+// createEtcdConfigForNewCluster sets the cluster state flag to "new", and uses the list of
+// cloud instances to construct the initial cluster URLs.
+//
+// This should only be used if either the cluster hasn't formed yet, or the local
+// instance is already part of the cluster.
+//
+// In the latter case, this function might erroneously include non-joined nodes in the initial
+// cluster URL list. This is okay however, as etcd seems to only validate these URLs
+// when the cluster state is set to "existing" and when bootstrapping a new cluster. For an
+// existing node it seems to be ignored.
 func (b *Bootstrapper) createEtcdConfigForNewCluster() (string, error) {
 	instances, err := b.cloudAPI.GetInstances()
 	if err != nil {
@@ -178,6 +191,12 @@ func (b *Bootstrapper) createEtcdConfigForNewCluster() (string, error) {
 	return b.createEtcdConfig(newCluster, initialClusterURLs)
 }
 
+// createEtcdConfigForExistingCluster sets the cluster state flag to "existing", and uses the member
+// list from the etcd API to construct the initial cluster URLs.
+//
+// This should only be used for a node that is joining an already existing cluster. The node should
+// not be registered yet in the cluster (its name does not appear in the cluster member list). However,
+// its peerURL should have been added so the cluster will accept it when it starts up.
 func (b *Bootstrapper) createEtcdConfigForExistingCluster() (string, error) {
 	members, err := b.etcdAPI.Members()
 	if err != nil {
@@ -185,34 +204,50 @@ func (b *Bootstrapper) createEtcdConfigForExistingCluster() (string, error) {
 	}
 	var initialClusterURLs []string
 	for _, member := range members {
-		if member.Name != "" {
-			// Don't include joining instances whose peerURL will be added but the name will be blank.
-			initialClusterURLs = append(initialClusterURLs, member.PeerURL)
+		if member.Name == "" {
+			// Don't include the joining node. Its peerURL will be set, but the name will be blank.
+			continue
 		}
+		initialClusterURLs = append(initialClusterURLs, member.PeerURL)
 	}
 	return b.createEtcdConfig(existingCluster, initialClusterURLs)
 }
 
+// createEtcdConfig creates all of the flags to be used by `etcd` itself.
+//
+// Use the [clustering guide](https://etcd.io/docs/v3.4.0/op-guide/clustering/) for details on what
+// these flags mean.
 func (b *Bootstrapper) createEtcdConfig(state clusterState, initialPeerURLs []string) (string, error) {
+	// Should be "new" in all cases except when joining an existing cluster, when it should be "existing".
 	envs := []string{"ETCD_INITIAL_CLUSTER_STATE=" + string(state)}
 
+	// Construct the format "name=peerURL" for all of the "initial" nodes in the cluster.
+	// "initial" simply means the nodes that have already joined the cluster. It doesn't necessarily
+	// mean the very initial nodes - the naming is confusing, unfortunately.
 	initialClusterValue, err := b.initialClusterFlagValue(initialPeerURLs)
 	if err != nil {
 		return "", err
 	}
 	envs = append(envs, fmt.Sprintf("ETCD_INITIAL_CLUSTER=%s", initialClusterValue))
 
+	// The name should be unique across the cluster and should match the name used in INITIAL_CLUSTER.
+	// This value will also be stored in etcd itself once the node has joined the cluster.
+	// In theory this value doesn't need to be unique, but it is used both by etcd-bootstrap and also
+	// by some of etcd's own discovery mechanisms, where it is assumed to be unique.
+	// etcd will also generate a unique ID for the node when it joins.
 	local, err := b.cloudAPI.GetLocalInstance()
 	if err != nil {
 		return "", err
 	}
 	envs = append(envs, fmt.Sprintf("ETCD_NAME=%s", local.Name))
 
-	// Advertise using the local endpoint which may be a domain name.
+	// Advertise using the URL that other nodes and clients use to connect to this node.
+	// This should typically be the domain name for this node, or IP if not using domain names.
 	envs = append(envs, fmt.Sprintf("ETCD_INITIAL_ADVERTISE_PEER_URLS=%s", b.peerURL(local.Endpoint)))
 	envs = append(envs, fmt.Sprintf("ETCD_ADVERTISE_CLIENT_URLS=%s", b.clientURL(local.Endpoint)))
 
-	// Listen on the local IP.
+	// Since we listen on the network interface, we have to specify an IP address here so etcd
+	// knows what to bind to.
 	localIP, err := b.cloudAPI.GetLocalIP()
 	if err != nil {
 		return "", err
@@ -220,6 +255,7 @@ func (b *Bootstrapper) createEtcdConfig(state clusterState, initialPeerURLs []st
 	envs = append(envs, fmt.Sprintf("ETCD_LISTEN_PEER_URLS=%s", b.peerURL(localIP)))
 	envs = append(envs, fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%s,%s", b.clientURL(localIP), b.clientURL("127.0.0.1")))
 
+	// Add any additional flags. Currently this is only used to add the TLS specific flags which add certs and things.
 	for _, flag := range b.additionalFlags {
 		envs = append(envs, flag)
 	}
@@ -232,8 +268,8 @@ func (b *Bootstrapper) initialClusterFlagValue(initialPeerURLs []string) (string
 		return "", err
 	}
 	var initialCluster []string
+	// This looks up the node name from the peer URL via a reverse lookup on the instances.
 	for _, instance := range instances {
-		// Only include instances that are part of the initial/existing cluster.
 		instancePeerURL := b.peerURL(instance.Endpoint)
 		if contains(initialPeerURLs, instancePeerURL) {
 			initialCluster = append(initialCluster, fmt.Sprintf("%s=%s", instance.Name, instancePeerURL))
