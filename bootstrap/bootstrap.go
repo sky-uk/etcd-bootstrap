@@ -26,6 +26,8 @@ const (
 	newCluster clusterState = "new"
 	// If the node is joining a cluster that doesn't know about the node then the cluster state should be existing
 	existingCluster clusterState = "existing"
+	peerPort = "2380"
+	clientPort = "2379"
 )
 
 // CloudAPI returns instance information for the etcd cluster from cloud APIs.
@@ -253,7 +255,10 @@ func (b *Bootstrapper) createEtcdConfig(state clusterState, initialPeerURLs []st
 		return "", err
 	}
 	envs = append(envs, fmt.Sprintf("ETCD_LISTEN_PEER_URLS=%s", b.peerURL(localIP)))
-	envs = append(envs, fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%s,%s", b.clientURL(localIP), b.clientURL("127.0.0.1")))
+	envs = append(envs, fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%s,%s", b.clientURL(localIP),
+		// Keep localhost port unencrypted to ease debugging. This should be safe as it is only accessible
+		// by those with access to the node.
+		"http://127.0.0.1:" + clientPort))
 
 	// Add any additional flags. Currently this is only used to add the TLS specific flags which add certs and things.
 	for _, flag := range b.additionalFlags {
@@ -280,11 +285,11 @@ func (b *Bootstrapper) initialClusterFlagValue(initialPeerURLs []string) (string
 }
 
 func (b *Bootstrapper) peerURL(host string) string {
-	return fmt.Sprintf("%s://%s:2380", b.protocol, host)
+	return fmt.Sprintf("%s://%s:%s", b.protocol, host, peerPort)
 }
 
 func (b *Bootstrapper) clientURL(host string) string {
-	return fmt.Sprintf("%s://%s:2379", b.protocol, host)
+	return fmt.Sprintf("%s://%s:%s", b.protocol, host, clientPort)
 }
 
 func contains(strings []string, value string) bool {

@@ -395,7 +395,9 @@ var _ = Describe("Bootstrap", func() {
 			Expect(flags).To(ContainElement("ETCD_ADVERTISE_CLIENT_URLS=" + localAdvertiseClientURL))
 			Expect(flags).To(ContainElement("ETCD_LISTEN_PEER_URLS=" + localListenPeerURL))
 			Expect(flags).To(ContainElement(fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=%s,%s",
-				localListenClientURL, bootstrapper.clientURL("127.0.0.1"))))
+				localListenClientURL,
+				// Localhost is always unencrypted.
+				"http://127.0.0.1:2379")))
 			// TLS flags
 			Expect(flags).To(ContainElement("ETCD_CLIENT_CERT_AUTH=true"))
 			Expect(flags).To(ContainElement("ETCD_TRUSTED_CA_FILE=" + serverCA))
