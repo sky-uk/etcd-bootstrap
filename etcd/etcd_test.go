@@ -19,11 +19,11 @@ func TestEtcd(t *testing.T) {
 }
 
 var _ = Describe("Etcd client", func() {
-	var membersAPIClient EtcdMembersAPI
+	var membersAPIClient MockMembersAPI
 
 	BeforeEach(func() {
 		By("Creating dummy client responses")
-		membersAPIClient = EtcdMembersAPI{
+		membersAPIClient = MockMembersAPI{
 			MockList: List{
 				ListOutput: []client.Member{
 					{
@@ -95,17 +95,17 @@ var _ = Describe("Etcd client", func() {
 		})
 	})
 
-	Context("AddMember()", func() {
+	Context("AddMemberByPeerURL()", func() {
 		It("can add a member when the client doesn't error", func() {
 			membersAPIClient.MockAdd.ExpectedPeerURL = "http://192.168.0.100"
 
 			By("Returning all expected responses")
 			etcdCluster := &ClusterAPI{membersAPIClient: membersAPIClient}
-			Expect(etcdCluster.AddMember("http://192.168.0.100")).To(BeNil())
+			Expect(etcdCluster.AddMemberByPeerURL("http://192.168.0.100")).To(BeNil())
 		})
 	})
 
-	Context("Remove()", func() {
+	Context("RemoveMemberByName()", func() {
 		It("can use the etcd members api client to remove a member", func() {
 			membersAPIClient.MockList.ListOutput = []client.Member{
 				{
@@ -119,7 +119,7 @@ var _ = Describe("Etcd client", func() {
 
 			By("Returning all expected responses")
 			etcdCluster := &ClusterAPI{membersAPIClient: membersAPIClient}
-			Expect(etcdCluster.RemoveMember("http://192.168.0.1:2379")).To(BeNil())
+			Expect(etcdCluster.RemoveMemberByName("test-remove-instance-name")).To(BeNil())
 		})
 
 		It("fails if it is unable to list members using the etcd members api client", func() {
@@ -127,28 +127,7 @@ var _ = Describe("Etcd client", func() {
 
 			By("Returning a client that isn't able to list etcd members")
 			etcdCluster := &ClusterAPI{membersAPIClient: membersAPIClient}
-			Expect(etcdCluster.RemoveMember("http://192.168.0.1:2379")).ToNot(BeNil())
-		})
-
-		It("fails if the member list contains complex peer urls", func() {
-			membersAPIClient.MockList.ListOutput = []client.Member{
-				{
-					ID:   "test-complex-response-id-1",
-					Name: "test-complex-response-id-1",
-					PeerURLs: []string{
-						"http://192.168.0.1:2380",
-						"http://172.16.0.1:2380",
-					},
-					ClientURLs: []string{
-						"http://192.168.0.1:2379",
-						"http://172.16.0.1:2379",
-					},
-				},
-			}
-
-			By("Returning an etcd client that returns complex members")
-			etcdCluster := &ClusterAPI{membersAPIClient: membersAPIClient}
-			Expect(etcdCluster.RemoveMember("http://192.168.0.1:2379")).ToNot(BeNil())
+			Expect(etcdCluster.RemoveMemberByName("test-remove-instance-name")).ToNot(BeNil())
 		})
 
 		It("does nothing if the member has already been removed", func() {
@@ -164,7 +143,7 @@ var _ = Describe("Etcd client", func() {
 
 			By("Returning an etcd member list containing irrelevant members")
 			etcdCluster := &ClusterAPI{membersAPIClient: membersAPIClient}
-			Expect(etcdCluster.RemoveMember("http://172.16.0.1:2379")).To(BeNil())
+			Expect(etcdCluster.RemoveMemberByName("test-remove-instance-name")).To(BeNil())
 		})
 	})
 
@@ -189,7 +168,7 @@ var _ = Describe("Etcd client", func() {
 })
 
 // EtcdMembersAPI for mocking calls to the coreos etcd client
-type EtcdMembersAPI struct {
+type MockMembersAPI struct {
 	MockList   List
 	MockAdd    Add
 	MockRemove Remove
@@ -207,7 +186,7 @@ func expectContextToHaveDeadline(ctx context.Context) {
 }
 
 // List mocks the coreos etcd client
-func (t EtcdMembersAPI) List(ctx context.Context) ([]client.Member, error) {
+func (t MockMembersAPI) List(ctx context.Context) ([]client.Member, error) {
 	expectContextToHaveDeadline(ctx)
 	return t.MockList.ListOutput, t.MockList.Err
 }
@@ -220,7 +199,7 @@ type Add struct {
 }
 
 // Add mocks the coreos etcd client
-func (t EtcdMembersAPI) Add(ctx context.Context, peerURL string) (*client.Member, error) {
+func (t MockMembersAPI) Add(ctx context.Context, peerURL string) (*client.Member, error) {
 	expectContextToHaveDeadline(ctx)
 	Expect(peerURL).To(Equal(t.MockAdd.ExpectedPeerURL))
 	return t.MockAdd.AddOutput, t.MockAdd.Err
@@ -233,7 +212,7 @@ type Remove struct {
 }
 
 // Remove mocks the coreos etcd client
-func (t EtcdMembersAPI) Remove(ctx context.Context, mID string) error {
+func (t MockMembersAPI) Remove(ctx context.Context, mID string) error {
 	expectContextToHaveDeadline(ctx)
 	Expect(mID).To(Equal(t.MockRemove.ExpectedMID))
 	return t.MockRemove.Err

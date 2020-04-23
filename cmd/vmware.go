@@ -83,7 +83,7 @@ func vmware(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalf("Failed to create etcd cluster API: %v", err)
 	}
-	bootstrapper, err := bootstrap.New(vmwareProvider, vmwareProvider, etcdCluster)
+	bootstrapper, err := bootstrap.New(vmwareProvider, etcdCluster)
 	if err != nil {
 		log.Fatalf("Failed to create etcd bootstrapper: %v", err)
 	}

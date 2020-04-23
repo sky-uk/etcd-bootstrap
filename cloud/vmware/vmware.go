@@ -54,6 +54,12 @@ func (m *Members) GetLocalInstance() (cloud.Instance, error) {
 	return m.instance, nil
 }
 
+// GetLocalIP returns the same value as the GetLocalInstance() endpoint.
+func (m *Members) GetLocalIP() (string, error) {
+	localInstance, _ := m.GetLocalInstance()
+	return localInstance.Endpoint, nil
+}
+
 // NewVMware returns the Members this local instance belongs to.
 func NewVMware(cfg *Config) (*Members, error) {
 	ctx, cancel := context.WithCancel(context.Background())

@@ -73,6 +73,10 @@ var _ = Describe("AWS Provider", func() {
 				Endpoint: localPrivateIP,
 			}))
 		})
+
+		It("returns the local IP as the local private IP", func() {
+			Expect(awsProvider.GetLocalIP()).To(Equal(localPrivateIP))
+		})
 	})
 
 	Context("AWS clients", func() {

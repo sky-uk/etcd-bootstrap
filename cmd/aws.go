@@ -69,14 +69,14 @@ func aws(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to create AWS provider: %v", err)
 	}
 
-	cloudInstances := createCloudInstances(aws)
-	etcdCluster := createEtcdClusterAPI(cloudInstances)
+	cloudAPI := createCloudAPI(aws)
+	etcdClusterAPI := createEtcdClusterAPI(cloudAPI)
 
 	var opts []bootstrap.Option
 	if enableTLS {
 		opts = []bootstrap.Option{bootstrap.WithTLS(serverCA, serverCert, serverKey, peerCA, peerCert, peerKey)}
 	}
-	bootstrapper, err := bootstrap.New(cloudInstances, aws, etcdCluster, opts...)
+	bootstrapper, err := bootstrap.New(cloudAPI, etcdClusterAPI, opts...)
 	if err != nil {
 		log.Fatalf("Failed to create etcd bootstrapper: %v", err)
 	}
@@ -85,7 +85,7 @@ func aws(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to generate etcd flags file: %v", err)
 	}
 
-	registerInstances(cloudInstances)
+	registerInstances(cloudAPI)
 }
 
 type localIPResolver struct {
@@ -105,7 +105,7 @@ func (l *localIPResolver) LookupLocalIP() (net.IP, error) {
 	return ip, nil
 }
 
-func createCloudInstances(aws *aws_cloud.AWS) bootstrap.CloudInstances {
+func createCloudAPI(aws *aws_cloud.AWS) bootstrap.CloudAPI {
 	switch instanceLookupMethod {
 	case "asg":
 		log.Info("Using ASG for looking up cluster instances")
@@ -118,14 +118,14 @@ func createCloudInstances(aws *aws_cloud.AWS) bootstrap.CloudInstances {
 		if srvService == "" {
 			log.Fatalf("srv-service must be provided")
 		}
-		return srv.New(srvDomainName, srvService, &localIPResolver{aws: aws})
+		return srv.New(srvDomainName, srvService, aws)
 	default:
 		log.Fatalf("Unsupported cluster lookup method %q", instanceLookupMethod)
 		return nil
 	}
 }
 
-func registerInstances(cloudInstances bootstrap.CloudInstances) {
+func registerInstances(cloudInstances bootstrap.CloudAPI) {
 	instances, err := cloudInstances.GetInstances()
 	if err != nil {
 		log.Fatalf("Failed to retrieve instances: %v", err)

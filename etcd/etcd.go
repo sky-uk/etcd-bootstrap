@@ -181,16 +181,17 @@ func (c *ClusterAPI) Members() ([]Member, error) {
 	return members, nil
 }
 
-// AddMember adds a new member to the cluster by its peer URL.
-func (c *ClusterAPI) AddMember(peerURL string) error {
+// AddMemberByPeerURL adds a new member to the cluster by its peer URL.
+// etcd bootstraps by requiring the peer URL to be first added. Then the new node informs etcd of its name.
+func (c *ClusterAPI) AddMemberByPeerURL(peerURL string) error {
 	ctx, cancelFn := context.WithTimeout(context.Background(), timeout)
 	defer cancelFn()
 	_, err := c.add(ctx, peerURL)
 	return err
 }
 
-// RemoveMember removes a member of the cluster by its peer URL.
-func (c *ClusterAPI) RemoveMember(peerURL string) error {
+// RemoveMemberByName removes a member of the cluster by its name.
+func (c *ClusterAPI) RemoveMemberByName(name string) error {
 	ctx, cancelFn := context.WithTimeout(context.Background(), timeout)
 	defer cancelFn()
 	members, err := c.list(ctx)
@@ -199,15 +200,12 @@ func (c *ClusterAPI) RemoveMember(peerURL string) error {
 	}
 
 	for _, member := range members {
-		if err := assertSinglePeerURL(member); err != nil {
-			return err
-		}
-		if member.PeerURLs[0] == peerURL {
+		if member.Name == name {
 			return c.remove(ctx, member.ID)
 		}
 	}
 
-	log.Infof("%s has already been removed", peerURL)
+	log.Infof("%s has already been removed", name)
 	return nil
 }
 

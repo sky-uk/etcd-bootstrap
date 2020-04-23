@@ -56,7 +56,7 @@ var _ = Describe("SRV Instances", func() {
 			sentHostAddrs: sentHostAddrs,
 		}
 		localResolver = &stubLocalResolver{
-			sentIP: net.ParseIP("10.10.10.2"),
+			sentIP: "10.10.10.2",
 		}
 		srv = New(domainName, service, localResolver)
 		srv.resolver = resolver
@@ -123,10 +123,10 @@ func (r *stubResolver) LookupHost(ctx context.Context, host string) (addrs []str
 }
 
 type stubLocalResolver struct {
-	sentIP  net.IP
+	sentIP  string
 	sentErr error
 }
 
-func (r *stubLocalResolver) LookupLocalIP() (net.IP, error) {
+func (r *stubLocalResolver) GetLocalIP() (string, error) {
 	return r.sentIP, r.sentErr
 }
