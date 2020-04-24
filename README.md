@@ -7,7 +7,7 @@ configuration and optionally register the cluster with a provider. It is intende
 which is run before starting an etcd instance (e.g. kubernetes init-containers).
 
 It currently supports use with etcd and one of:
-  * An AWS Auto Scaling group; or
+  * An AWS Auto Scaling group or SRV record; or
   * A vSphere server; or
   * A GCP Managed Instance group
 
@@ -15,25 +15,70 @@ The provider type used is determined by the parameter passed after `etcd-bootstr
 running `./etcd-bootstrap -h`. Once you have selected a provider to use, you can list the various flags supported by
 running `./etcd-bootsrap <provider> -h`.
 
-### AWS
+## AWS
 
 When using the AWS provider, by default etcd-bootstrap will get information about the instance it is running on (must
-be running on an AWS EC2 instance and be part of one AWS autoscaling group). It will discover the autoscaling group the
-node is part of and then discover all other instances within that group. From this information, configuration will be
-generated to either join or create a new etcd cluster based on the etcd cluster state.
+be running on an AWS EC2 instance and be part of one AWS autoscaling group). It has two modes of operation for
+discovering the instances of the cluster:
 
-#### Provider Flags:
+- ASG mode which uses the local auto scaling group the node is a part of.
+- SRV mode which uses an SRV record to discover all the nodes in the cluster.
+
+### Provider Flags:
 
 | Flag | Default | Comment |
 | ---- | -------- | ------- |
+| `--instance-lookup-method` | `asg` | the method for looking up instances (either: asg or srv) |
+| `--srv-domain-name` | `n/a` | SRV record to use when using SRV lookup |
+| `--srv-service` | `etcd-bootstrap` | SRV service to use when using SRV lookup |
 | `--registration-provider` | `noop` | select the registration provider to use (either: dns, lb or noop) |
 | `--r53-zone-id` | `n/a` | the zone to use when using the dns registration provider |
 | `--dns-hostname` | `n/a` | the dns hostname to use when using the dns registration provider |
 | `--lb-target-group-name` | `n/a` | the aws loadbalancer target group name when using the lb registration provider |
+| `--enable-tls` | `n/a` | enable client/server/peer TLS |
+| `--tls-ca` | `n/a` | path to client/server CA |
+| `--tls-cert` | `n/a` | path to server certificate |
+| `--tls-key` | `n/a` | path to server key |
+| `--tls-peer-ca` | `n/a` | path to peer CA |
+| `--tls-peer-cert` | `n/a` | path to peer cert |
+| `--tls-peer-key` | `n/a` | path to peer key |
 
-#### Registration Providers
+### Instance Lookup Method
 
-##### dns: Route53
+#### Auto scaling group (ASG)
+
+When this method is used, `etcd-bootstrap` will query the local ASG for instance information. All that is required is the
+instance is part of an ASG.
+
+#### SRV records
+
+When this method is used, `etcd-bootstrap` will lookup an SRV record to find the associated instances. To set this up,
+create an SRV record and then a TXT record for each instance with its name:
+
+*SRV*
+``` text
+_etcd-bootstrap._tcp.etcd.example.com. 300 IN SRV 0 0 2379 etcd-0.etcd.example.com
+_etcd-bootstrap._tcp.etcd.example.com. 300 IN SRV 0 0 2379 etcd-1.etcd.example.com
+_etcd-bootstrap._tcp.etcd.example.com. 300 IN SRV 0 0 2379 etcd-2.etcd.example.com
+```
+
+*TXT*
+
+``` text
+etcd-0.etcd.example.com. 300 IN TXT "name=etcd-0"
+etcd-1.etcd.example.com. 300 IN TXT "name=etcd-1"
+etcd-2.etcd.example.com. 300 IN TXT "name=etcd-2"
+```
+
+Then inform `etcd-bootstrap` to use the SRV record:
+
+``` sh
+etcd-bootstrap --instance-lookup-method=srv --srv-domain-name=etcd.example.com ...
+```
+
+### Registration Providers
+
+#### dns: Route53
 
 If running etcd bootstrap with `--registration-provider=dns` this will create a route53 record containing all etcd instance
 ip addresses as A records. It will create it in the zone supplied using `--r53-zone-id=` and the domain supplied by 
@@ -46,13 +91,13 @@ Optionally etcd-bootstrap can also register all the IPs in the autoscaling group
 If zone `MYZONEID` has domain name `example.com`, this will update the domain name `etcd.example.com` with all
 of the IPs. This lets clients use round robin DNS for connecting to the cluster.
 
-##### lb: AWS Loadbalancer Target Group
+#### lb: AWS Loadbalancer Target Group
 
-If running etcd bootsrap with `--registration-provider=lb` this will attempt to register all etcd instances with an AWS
+If running etcd bootstrap with `--registration-provider=lb` this will attempt to register all etcd instances with an AWS
 loadbalancer target group with the name supplied by `--lb-target-group-name` (flag is required when using this
 registration type).
 
-##### Example Kubernetes Pod:
+#### Example Kubernetes Pod:
 
 ```yaml
 apiVersion: v1
@@ -107,11 +152,13 @@ spec:
       protocol: TCP
 ```
 
-#### IAM role
+### IAM role
 
-Instances must have one of the following IAM policy rules:
+Instances must have one of the following IAM policy rules based on registration type.
 
-##### Registration type: none 
+If use the `SRV` instance lookup method, then `autoscaling:DescribeAutoScaling*` can be removed.
+
+#### Registration type: none 
 
 ```json
 {
@@ -130,7 +177,7 @@ Instances must have one of the following IAM policy rules:
 
 ```
 
-##### Registration type: dns 
+#### Registration type: dns 
 
 ```json
 {
@@ -151,7 +198,7 @@ Instances must have one of the following IAM policy rules:
 
 ```
 
-##### Registration type: lb 
+#### Registration type: lb 
 
 ```json
 {
@@ -172,9 +219,15 @@ Instances must have one of the following IAM policy rules:
 
 ```
 
-### GCP
+### TLS
 
-#### Provider Flags:
+TLS can be enabled for client to server and peer communication. etcd treats client and peer communication separately, so
+certificates must be provided for each. The flags follow what [etcd itself uses](https://github.com/etcd-io/etcd/blob/master/Documentation/op-guide/security.md), with the exception that
+`--enable-tls` enables both client and peer TLS.
+
+## GCP
+
+### Provider Flags:
 
 | Flag | Default | Comment |
 | ---- | -------- | ------- |
@@ -191,9 +244,9 @@ to the values provided on the command line.
 In case a node has multiple Network Interfaces, the GCP bootstrapper will take the
 private ip of the first available one.
 
-### VMWare
+## VMWare
 
-#### Provider Flags:
+### Provider Flags:
 
 | Flag | Default | Comment |
 | ---- | -------- | ------- |
@@ -206,13 +259,13 @@ private ip of the first available one.
 | `--environment` | `n/a` | value of the 'tags_environment' extra configuration option in vSphere to filter nodes by |
 | `--role` | `n/a` | value of the 'tags_role' extra configuration option in vSphere to filter nodes by |
 
-#### Provider Environment Variables:
+### Provider Environment Variables:
 
 | ENV | Default | Comment |
 | ---- | -------- | ------- |
 | `VSPHERE_PASSWORD` | `n/a` | password for vSphere API |
 
-#### Notes
+### Notes
 
 The VMWare mode requires configuring with connectivity information to the vSphere VCenter API.  See usage help for
 required arguments. In order for the environment and role filters to work, the VMs must have been provisioned with extra

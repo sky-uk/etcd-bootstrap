@@ -1,3 +1,8 @@
+# v2.2.0
+
+* Add support for discovering nodes via an SRV record.
+* Add support for enabling TLS.
+
 # v2.1.0
 
 * Register with Target Group by IP address instead of instance ID
