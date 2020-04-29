@@ -3,6 +3,7 @@ package etcd
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -26,15 +27,15 @@ type etcdMembersAPI interface {
 
 // ClusterAPI represents an etcd cluster API.
 type ClusterAPI struct {
-	instances Instances
+	cloudAPI  CloudAPI
 	protocol  string
 	transport client.CancelableTransport
 	// membersAPIClient is the cached API client. Don't use it directly, use list/add/remove instead.
 	membersAPIClient etcdMembersAPI
 }
 
-// Instances returns the instances in the cluster.
-type Instances interface {
+// CloudAPI returns the cloud instances in the cluster.
+type CloudAPI interface {
 	// GetInstances returns all the non-terminated instances that will be part of the etcd cluster.
 	GetInstances() ([]cloud.Instance, error)
 }
@@ -69,12 +70,31 @@ func WithTLS(peerCA, peerCert, peerKey string) Option {
 		if err != nil {
 			return fmt.Errorf("unable to load peer certs: %w", err)
 		}
-		caCert, err := ioutil.ReadFile(peerCA)
+
+		// Set up CA certificate.
+		caCerts, err := ioutil.ReadFile(peerCA)
 		if err != nil {
 			return fmt.Errorf("unable to load peer ca: %w", err)
 		}
 		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM(caCert)
+		for len(caCerts) > 0 {
+			var block *pem.Block
+			block, caCerts = pem.Decode(caCerts)
+			if block == nil {
+				break
+			}
+			if block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
+				continue
+			}
+
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				return fmt.Errorf("unable to parse CA certificate %s: %w", peerCA, err)
+			}
+
+			caCertPool.AddCert(cert)
+		}
+
 		tlsConfig := &tls.Config{
 			Certificates: []tls.Certificate{cert},
 			RootCAs:      caCertPool,
@@ -97,9 +117,9 @@ func WithTLS(peerCA, peerCert, peerKey string) Option {
 }
 
 // New returns a cluster object for interacting with the etcd cluster API.
-func New(instances Instances, opts ...Option) (*ClusterAPI, error) {
+func New(cloudAPI CloudAPI, opts ...Option) (*ClusterAPI, error) {
 	c := &ClusterAPI{
-		instances: instances,
+		cloudAPI:  cloudAPI,
 		protocol:  "http",
 		transport: client.DefaultTransport,
 	}
@@ -111,23 +131,33 @@ func New(instances Instances, opts ...Option) (*ClusterAPI, error) {
 	return c, nil
 }
 
+func (c *ClusterAPI) createEtcdClientConfig() (client.Config, error) {
+	instances, err := c.cloudAPI.GetInstances()
+	if err != nil {
+		return client.Config{}, err
+	}
+
+	var endpoints []string
+	for _, instance := range instances {
+		endpoints = append(endpoints, fmt.Sprintf("%s://%s:2379", c.protocol, instance.Endpoint))
+	}
+
+	return client.Config{
+		Endpoints: endpoints,
+		Transport: c.transport,
+	}, nil
+}
+
 func (c *ClusterAPI) membersAPI() (etcdMembersAPI, error) {
 	if c.membersAPIClient == nil {
-		instances, err := c.instances.GetInstances()
+		conf, err := c.createEtcdClientConfig()
 		if err != nil {
 			return nil, err
 		}
-
-		var endpoints []string
-		for _, instance := range instances {
-			endpoints = append(endpoints, fmt.Sprintf("%s://%s:2379", c.protocol, instance.Endpoint))
-		}
-
-		cl, err := client.New(client.Config{Endpoints: endpoints})
+		cl, err := client.New(conf)
 		if err != nil {
 			return nil, err
 		}
-
 		c.membersAPIClient = client.NewMembersAPI(cl)
 	}
 	return c.membersAPIClient, nil
@@ -157,12 +187,33 @@ func (c *ClusterAPI) remove(ctx context.Context, mID string) error {
 	return api.Remove(ctx, mID)
 }
 
+func isTLSError(err error) bool {
+	if cerr, ok := err.(*client.ClusterError); ok {
+		for _, clusterErr := range cerr.Errors {
+			if _, ok := clusterErr.(x509.CertificateInvalidError); ok {
+				return true
+			}
+			if _, ok := clusterErr.(x509.UnknownAuthorityError); ok {
+				return true
+			}
+			if _, ok := clusterErr.(x509.HostnameError); ok {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // Members returns the cluster members.
 func (c *ClusterAPI) Members() ([]Member, error) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), timeout)
 	defer cancelFn()
 	etcdMembers, err := c.list(ctx)
 	if err != nil {
+		if isTLSError(err) {
+			// TLS errors are unexpected, so fail.
+			return nil, fmt.Errorf("there is an error with the TLS certificates: %w", err)
+		}
 		log.Infof("Detected cluster errors, this is normal when bootstrapping a new cluster: %v", err)
 	}
 

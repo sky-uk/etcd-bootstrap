@@ -1,11 +1,13 @@
 package etcd
 
 import (
+	"crypto/x509"
 	"fmt"
 	"net/http"
 	"testing"
 
 	"github.com/coreos/etcd/client"
+	"github.com/sky-uk/etcd-bootstrap/cloud"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -70,6 +72,20 @@ var _ = Describe("Etcd client", func() {
 			etcdCluster := &ClusterAPI{membersAPIClient: membersAPIClient}
 			_, err := etcdCluster.Members()
 			Expect(err).To(BeNil())
+		})
+
+		It("fails if a TLS error occurred", func() {
+			certErrors := []error{x509.CertificateInvalidError{}, x509.UnknownAuthorityError{}, x509.HostnameError{}}
+			for _, certErr := range certErrors {
+				clusterErr := client.ClusterError{
+					Errors: []error{certErr},
+				}
+				membersAPIClient.MockList.Err = &clusterErr
+
+				etcdCluster := &ClusterAPI{membersAPIClient: membersAPIClient}
+				_, err := etcdCluster.Members()
+				Expect(err).To(Not(Succeed()), "should fail on %v", certErr)
+			}
 		})
 
 		It("fails when the etcd members api response contains a member with more than one peer url", func() {
@@ -147,7 +163,7 @@ var _ = Describe("Etcd client", func() {
 		})
 	})
 
-	Context("TLS", func() {
+	Describe("WithTLS()", func() {
 		var (
 			// Created with:
 			//   CAROOT=. mkcert -install && mv rootCA.pem root
@@ -163,6 +179,36 @@ var _ = Describe("Etcd client", func() {
 			Expect(cluster.protocol).To(Equal("https"))
 			transport := (cluster.transport).(*http.Transport)
 			Expect(transport.TLSClientConfig).To(Not(BeNil()), "tls client config should be set")
+		})
+	})
+
+	Describe("createEtcdClientConfig()", func() {
+		var cloudAPI CloudAPI
+
+		BeforeEach(func() {
+			cloudAPI = &mockCloudAPI{
+				instances: []cloud.Instance{
+					{
+						Name:     "i-123",
+						Endpoint: "etcd-1",
+					},
+				},
+			}
+		})
+
+		It("adds the correct endponts", func() {
+			cluster := &ClusterAPI{cloudAPI: cloudAPI, protocol: "pigeon"}
+			conf, err := cluster.createEtcdClientConfig()
+			Expect(err).To(BeNil())
+			Expect(conf.Endpoints).To(ContainElement("pigeon://etcd-1:2379"))
+		})
+
+		It("sets the configured transport", func() {
+			transport := client.DefaultTransport
+			cluster := &ClusterAPI{cloudAPI: cloudAPI, transport: transport}
+			conf, err := cluster.createEtcdClientConfig()
+			Expect(err).To(BeNil())
+			Expect(conf.Transport).To(Equal(transport))
 		})
 	})
 })
@@ -216,4 +262,12 @@ func (t MockMembersAPI) Remove(ctx context.Context, mID string) error {
 	expectContextToHaveDeadline(ctx)
 	Expect(mID).To(Equal(t.MockRemove.ExpectedMID))
 	return t.MockRemove.Err
+}
+
+type mockCloudAPI struct {
+	instances []cloud.Instance
+}
+
+func (m *mockCloudAPI) GetInstances() ([]cloud.Instance, error) {
+	return m.instances, nil
 }
