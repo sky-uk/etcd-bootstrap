@@ -197,6 +197,9 @@ func (b *Bootstrapper) createEtcdConfigForNewCluster() (string, error) {
 // This should only be used for a node that is joining an already existing cluster. The node should
 // not be registered yet in the cluster (its name does not appear in the cluster member list). However,
 // its peerURL should have been added so the cluster will accept it when it starts up.
+//
+// The local node must also be included in the initial cluster list, which should happen if its
+// peerURL was added in the reconcile step.
 func (b *Bootstrapper) createEtcdConfigForExistingCluster() (string, error) {
 	members, err := b.etcdAPI.Members()
 	if err != nil {
@@ -204,10 +207,6 @@ func (b *Bootstrapper) createEtcdConfigForExistingCluster() (string, error) {
 	}
 	var initialClusterURLs []string
 	for _, member := range members {
-		if member.Name == "" {
-			// Don't include the joining node. Its peerURL will be set, but the name will be blank.
-			continue
-		}
 		initialClusterURLs = append(initialClusterURLs, member.PeerURL)
 	}
 	return b.createEtcdConfig(existingCluster, initialClusterURLs)

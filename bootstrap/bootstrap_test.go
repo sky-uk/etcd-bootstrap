@@ -310,7 +310,7 @@ var _ = Describe("Bootstrap", func() {
 				},
 			}
 
-			By("Returning a list of etcd members that contains the local instance as partially initialised")
+			By("Returning a list of etcd members that contains the local instance as ready to join")
 			etcdAPIMock.MembersMock.MembersOutput = []etcd.Member{
 				{
 					// Name will be blank after adding the peerURL until the instance registers itself.
@@ -334,7 +334,8 @@ var _ = Describe("Bootstrap", func() {
 
 			flags := strings.Split(etcdFlags, "\n")
 			Expect(flags).To(ContainElement("ETCD_INITIAL_CLUSTER_STATE=existing"))
-			Expect(flags).To(ContainElement(fmt.Sprintf("ETCD_INITIAL_CLUSTER=%s=%s,%s=%s",
+			Expect(flags).To(ContainElement(fmt.Sprintf("ETCD_INITIAL_CLUSTER=%s=%s,%s=%s,%s=%s",
+				localInstanceID, localAdvertisePeerURL,
 				"test-existing-cluster-partially-initialised-instance-id-1", "http://endpoint-1:2380",
 				"test-existing-cluster-partially-initialised-instance-id-2", "http://endpoint-2:2380")))
 			Expect(flags).To(ContainElement("ETCD_NAME=" + localInstanceID))
