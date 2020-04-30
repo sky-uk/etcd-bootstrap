@@ -140,7 +140,7 @@ type registrationProvider interface {
 	Update([]cloud.Instance) error
 }
 
-func createEtcdClusterAPI(instances etcd.Instances) *etcd.ClusterAPI {
+func createEtcdClusterAPI(instances etcd.CloudAPI) *etcd.ClusterAPI {
 	var etcdOpts []etcd.Option
 	if enableTLS {
 		etcdOpts = []etcd.Option{etcd.WithTLS(peerCA, peerCert, peerKey)}

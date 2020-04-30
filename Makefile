@@ -13,8 +13,8 @@ ldflags := -X "github.com/sky-uk/etcd-bootstrap/cmd.version=$(version)" -X "gith
 
 .PHONY: all format test build setup vet lint check-format check docker release
 
-all : format check install
-check : vet lint test
+all : check install
+check : check-format vet lint test
 travis : setup check-format check build docker
 
 setup:
