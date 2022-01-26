@@ -63,6 +63,8 @@ func (t AWSEC2Client) DescribeInstances(e *ec2.DescribeInstancesInput) (*ec2.Des
 type AWSELBClient struct {
 	MockDescribeTargetGroups DescribeTargetGroups
 	MockRegisterTargets      RegisterTargets
+	MockDescribeTargetHealth DescribeTargetHealth
+	MockDeregisterTargets    DeregisterTargets
 }
 
 // DescribeTargetGroups sets the expected input and output for DescribeTargetGroups() on AWSELBClient
@@ -89,6 +91,32 @@ type RegisterTargets struct {
 func (t AWSELBClient) RegisterTargets(e *elbv2.RegisterTargetsInput) (*elbv2.RegisterTargetsOutput, error) {
 	gomega.Expect(e).To(gomega.Equal(t.MockRegisterTargets.ExpectedInput))
 	return t.MockRegisterTargets.RegisterTargetsOutput, t.MockRegisterTargets.Err
+}
+
+// DescribeTargetHealth sets the expected input and output for DescribeTargetHealth() on AWSELBClient
+type DescribeTargetHealth struct {
+	ExpectedInput              *elbv2.DescribeTargetHealthInput
+	DescribeTargetHealthOutput *elbv2.DescribeTargetHealthOutput
+	Err                        error
+}
+
+// DescribeTargetHealth mocks the aws elb client
+func (t AWSELBClient) DescribeTargetHealth(e *elbv2.DescribeTargetHealthInput) (*elbv2.DescribeTargetHealthOutput, error) {
+	gomega.Expect(e).To(gomega.Equal(t.MockDescribeTargetHealth.ExpectedInput))
+	return t.MockDescribeTargetHealth.DescribeTargetHealthOutput, t.MockDescribeTargetHealth.Err
+}
+
+// DeregisterTargets sets the expected input and output for DeregisterTargets() on AWSELBClient
+type DeregisterTargets struct {
+	ExpectedInput           *elbv2.DeregisterTargetsInput
+	DeregisterTargetsOutput *elbv2.DeregisterTargetsOutput
+	Err                     error
+}
+
+// DeregisterTargets mocks the aws elb client
+func (t AWSELBClient) DeregisterTargets(e *elbv2.DeregisterTargetsInput) (*elbv2.DeregisterTargetsOutput, error) {
+	gomega.Expect(e).To(gomega.Equal(t.MockDeregisterTargets.ExpectedInput))
+	return t.MockDeregisterTargets.DeregisterTargetsOutput, t.MockDeregisterTargets.Err
 }
 
 // AWSR53Client for mocking calls to the aws route53 client

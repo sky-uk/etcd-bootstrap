@@ -57,6 +57,21 @@ var _ = Describe("Loadbalancer Target Group Registration Provider", func() {
 					Targets:        elbInstances,
 				},
 			},
+			MockDescribeTargetHealth: mock.DescribeTargetHealth{
+				ExpectedInput: &elbv2.DescribeTargetHealthInput{
+					TargetGroupArn: aws.String(targetGroupARN),
+					Targets:        nil,
+				},
+				DescribeTargetHealthOutput: &elbv2.DescribeTargetHealthOutput{
+					TargetHealthDescriptions: []*elbv2.TargetHealthDescription{},
+				},
+			},
+			MockDeregisterTargets: mock.DeregisterTargets{
+				ExpectedInput: &elbv2.DeregisterTargetsInput{
+					TargetGroupArn: aws.String(targetGroupARN),
+					Targets:        []*elbv2.TargetDescription{},
+				},
+			},
 		}
 		registrationProvider = LBTargetGroupRegistrationProvider{
 			targetGroupName: targetGroupName,
@@ -71,6 +86,7 @@ var _ = Describe("Loadbalancer Target Group Registration Provider", func() {
 
 		It("passes when DescribeTargetGroups and RegisterTargets return expected values with no instances", func() {
 			elbClient.MockRegisterTargets.ExpectedInput.Targets = nil
+			elbClient.MockDescribeTargetHealth.ExpectedInput.Targets = nil
 			registrationProvider.elb = elbClient
 			Expect(registrationProvider.Update([]cloud.Instance{})).To(BeNil())
 		})
