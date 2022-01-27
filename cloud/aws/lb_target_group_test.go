@@ -60,7 +60,6 @@ var _ = Describe("Loadbalancer Target Group Registration Provider", func() {
 			MockDescribeTargetHealth: mock.DescribeTargetHealth{
 				ExpectedInput: &elbv2.DescribeTargetHealthInput{
 					TargetGroupArn: aws.String(targetGroupARN),
-					Targets:        nil,
 				},
 				DescribeTargetHealthOutput: &elbv2.DescribeTargetHealthOutput{
 					TargetHealthDescriptions: []*elbv2.TargetHealthDescription{},
@@ -80,13 +79,12 @@ var _ = Describe("Loadbalancer Target Group Registration Provider", func() {
 	})
 
 	Context("Update()", func() {
-		It("passes when DescribeTargetGroups and RegisterTargets return expected values with instances", func() {
+		It("passes when DescribeTargetGroups, DescribeTargetHealth, RegisterTargets and DeRegisterTargets return expected values with instances", func() {
 			Expect(registrationProvider.Update(testInstances)).To(BeNil())
 		})
 
-		It("passes when DescribeTargetGroups and RegisterTargets return expected values with no instances", func() {
+		It("passes when DescribeTargetGroups, DescribeTargetHealth, RegisterTargets and DeRegisterTargets return expected values with no instances", func() {
 			elbClient.MockRegisterTargets.ExpectedInput.Targets = nil
-			elbClient.MockDescribeTargetHealth.ExpectedInput.Targets = nil
 			registrationProvider.elb = elbClient
 			Expect(registrationProvider.Update([]cloud.Instance{})).To(BeNil())
 		})
@@ -117,6 +115,36 @@ var _ = Describe("Loadbalancer Target Group Registration Provider", func() {
 			elbClient.MockRegisterTargets.Err = fmt.Errorf("failed to register targets")
 			registrationProvider.elb = elbClient
 			Expect(registrationProvider.Update(testInstances)).ToNot(BeNil())
+		})
+
+		It("passes when there are targets to deregister", func() {
+			var targetHealthDescriptions []*elbv2.TargetHealthDescription
+
+			for _, testInstance := range testInstances {
+				targetHealthDescriptions = append(targetHealthDescriptions, &elbv2.TargetHealthDescription{
+					Target: &elbv2.TargetDescription{
+						Id: aws.String(testInstance.Endpoint),
+					},
+				})
+			}
+
+			staleTarget := &elbv2.TargetDescription{
+				Id: aws.String("10.0.0.254"),
+			}
+
+			// add a 'stale' target that will get deregistered
+			targetHealthDescriptions = append(targetHealthDescriptions, &elbv2.TargetHealthDescription{
+				Target: staleTarget,
+			})
+
+			elbClient.MockDescribeTargetHealth.DescribeTargetHealthOutput = &elbv2.DescribeTargetHealthOutput{
+				TargetHealthDescriptions: targetHealthDescriptions,
+			}
+
+			elbClient.MockDeregisterTargets.ExpectedInput.Targets = []*elbv2.TargetDescription{staleTarget}
+
+			registrationProvider.elb = elbClient
+			Expect(registrationProvider.Update(testInstances)).To(BeNil())
 		})
 	})
 })
