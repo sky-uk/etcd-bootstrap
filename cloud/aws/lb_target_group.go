@@ -21,6 +21,10 @@ type elb interface {
 	DescribeTargetGroups(e *elbv2.DescribeTargetGroupsInput) (*elbv2.DescribeTargetGroupsOutput, error)
 	// RegisterTargets registers instance or ip targets with an aws elb target group
 	RegisterTargets(e *elbv2.RegisterTargetsInput) (*elbv2.RegisterTargetsOutput, error)
+	// DescribeTargetHealth returns information about the health of an aws elb target
+	DescribeTargetHealth(e *elbv2.DescribeTargetHealthInput) (*elbv2.DescribeTargetHealthOutput, error)
+	// DeregisterTargets deregisters instance or ip targets from an aws elb target group
+	DeregisterTargets(e *elbv2.DeregisterTargetsInput) (*elbv2.DeregisterTargetsOutput, error)
 }
 
 // LBTargetGroupRegistrationProvider contains an aws elb client and a target group name used for registering etcd
@@ -84,7 +88,46 @@ func (l LBTargetGroupRegistrationProvider) Update(instances []cloud.Instance) er
 		return fmt.Errorf("unable to register etcd instances with loadbalancer target group: %v", err)
 	}
 
+	targetsToRemove := []*elbv2.TargetDescription{}
+
+	existingTargets, err := l.getExistingLBTargets(targetGroupARN)
+	if err != nil {
+		return err
+	}
+
+	for _, target := range existingTargets {
+		if !contains(instances, target) {
+			targetsToRemove = append(targetsToRemove, target)
+		}
+	}
+
+	deregisterEtcdInstances := &elbv2.DeregisterTargetsInput{
+		TargetGroupArn: targetGroupARN,
+		Targets:        targetsToRemove,
+	}
+
+	_, err = l.elb.DeregisterTargets(deregisterEtcdInstances)
+	if err != nil {
+		return fmt.Errorf("unable to deregister etcd instances from loadbalancer target group: %v", err)
+	}
+
 	return nil
+}
+
+func (l LBTargetGroupRegistrationProvider) getExistingLBTargets(targetGroupARN *string) ([]*elbv2.TargetDescription, error) {
+	existingTargets, err := l.elb.DescribeTargetHealth(&elbv2.DescribeTargetHealthInput{
+		TargetGroupArn: targetGroupARN,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to describe loadbalancer target health: %v", err)
+	}
+
+	targetDescriptions := []*elbv2.TargetDescription{}
+	for _, target := range existingTargets.TargetHealthDescriptions {
+		targetDescriptions = append(targetDescriptions, target.Target)
+	}
+
+	return targetDescriptions, nil
 }
 
 func getTargetGroupARN(targetGroups *elbv2.DescribeTargetGroupsOutput) (*string, error) {
@@ -95,4 +138,13 @@ func getTargetGroupARN(targetGroups *elbv2.DescribeTargetGroupsOutput) (*string,
 	}
 
 	return targetGroups.TargetGroups[0].TargetGroupArn, nil
+}
+
+func contains(instances []cloud.Instance, targetDescription *elbv2.TargetDescription) bool {
+	for _, i := range instances {
+		if i.Endpoint == *targetDescription.Id {
+			return true
+		}
+	}
+	return false
 }
