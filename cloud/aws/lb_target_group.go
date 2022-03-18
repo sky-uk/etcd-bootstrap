@@ -101,14 +101,16 @@ func (l LBTargetGroupRegistrationProvider) Update(instances []cloud.Instance) er
 		}
 	}
 
-	deregisterEtcdInstances := &elbv2.DeregisterTargetsInput{
-		TargetGroupArn: targetGroupARN,
-		Targets:        targetsToRemove,
-	}
+	if len(targetsToRemove) > 0 {
+		deregisterEtcdInstances := &elbv2.DeregisterTargetsInput{
+			TargetGroupArn: targetGroupARN,
+			Targets:        targetsToRemove,
+		}
 
-	_, err = l.elb.DeregisterTargets(deregisterEtcdInstances)
-	if err != nil {
-		return fmt.Errorf("unable to deregister etcd instances from loadbalancer target group: %v", err)
+		_, err = l.elb.DeregisterTargets(deregisterEtcdInstances)
+		if err != nil {
+			return fmt.Errorf("unable to deregister etcd instances from loadbalancer target group: %v", err)
+		}
 	}
 
 	return nil
