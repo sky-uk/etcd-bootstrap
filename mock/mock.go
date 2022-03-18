@@ -1,6 +1,8 @@
 package mock
 
 import (
+	"errors"
+
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elbv2"
@@ -115,6 +117,9 @@ type DeregisterTargets struct {
 
 // DeregisterTargets mocks the aws elb client
 func (t AWSELBClient) DeregisterTargets(e *elbv2.DeregisterTargetsInput) (*elbv2.DeregisterTargetsOutput, error) {
+	if len(e.Targets) == 0 {
+		return nil, errors.New("ValidationError: Targets must be specified")
+	}
 	gomega.Expect(e).To(gomega.Equal(t.MockDeregisterTargets.ExpectedInput))
 	return t.MockDeregisterTargets.DeregisterTargetsOutput, t.MockDeregisterTargets.Err
 }
